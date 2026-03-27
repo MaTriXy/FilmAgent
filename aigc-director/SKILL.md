@@ -29,6 +29,10 @@ metadata:
 aigc-director/                    ← OpenClaw 调用的 skill 根目录
 ├── aigc-claw/                    ← 前后端项目代码
 │   ├── backend/                  ← FastAPI 后端（端口 8000）
+│   │   └── code/result/          ← 模型生成产物存放目录
+│   │            ├── script/      ← 剧本产物
+│   │            ├── image/       ← 图片产物（角色、场景、参考图）
+│   │            └── video/       ← 视频产物
 │   └── frontend/                 ← Next.js 前端（端口 3000）
 ├── references/                   ← OpenClaw 调用时的参考文档
 │   ├── init_project/             ← 项目初始化
@@ -38,6 +42,11 @@ aigc-director/                    ← OpenClaw 调用的 skill 根目录
 │   └── send_message/             ← 消息发送
 └── SKILL.md                      ← skill 正文
 ```
+
+> **产物存放目录**：`aigc-claw/backend/code/result/`
+> - `script/` - 剧本产物
+> - `image/` - 图片产物（角色、场景、参考图）
+> - `video/` - 视频产物
 
 ---
 
@@ -97,6 +106,8 @@ aigc-director/                    ← OpenClaw 调用的 skill 根目录
 9. 参考 create_post.md 执行后期剪辑
 10. 完成 → 发送最终视频给用户
 ```
+
+> **注意**：一定要参考 `references/` 目录下的具体文档执行每一步操作，不要凭记忆或想当然去调用 API！
 
 ---
 
@@ -166,6 +177,14 @@ curl "http://localhost:8000/api/project/{session_id}/artifact/{stage}"
 | session_completed | 全部完成 | 结束 |
 
 > **注意**：只有 status 变化时才需要干预，不要反复调用 artifact API 去"确认"！
+
+---
+
+## 消息发送渠道
+
+根据向用户发送消息的渠道（飞书/微信），读取 `references/send_message/` 下的对应参考文档，获取注意事项和发送方法：
+- [feishu.md](references/send_message/feishu.md) - 飞书发送消息
+- [wechat.md](references/send_message/wechat.md) - 微信发送消息
 
 ---
 

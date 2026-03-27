@@ -93,6 +93,8 @@ curl -X POST "http://localhost:8000/api/project/{session_id}/intervene" \
 - **背景列表**：`artifact.settings`（包含背景名称、描述、氛围）
 - **场景列表**：`artifact.scenes`（包含场景编号、类型、描述、人物、地点）
 
+- **发送前端 URL**（获取本地 IPv4 地址，构造 `http://{local_ip}:3000/?session={session_id}&stage=script_generation`）
+
 询问用户确认后调用：
 
 ```bash

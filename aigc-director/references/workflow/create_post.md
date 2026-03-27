@@ -26,6 +26,7 @@ curl -X POST "http://localhost:8000/api/project/{session_id}/execute/post_produc
 
 全部阶段完成后，告知用户：
 - 完整视频已生成
+- **发送前端 URL**（获取本地 IPv4 地址，构造 `http://{local_ip}:3000/?session={session_id}&stage=post_production`）
 - 提供 Web 界面链接供用户查看和下载
 
 ```bash

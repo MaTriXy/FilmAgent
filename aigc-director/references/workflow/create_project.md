@@ -74,6 +74,7 @@ curl -X POST "http://localhost:8000/api/project/start" \
 
 在创建项目前，请向用户展示以下选项并让用户选择：
 
+表格形式：
 | 配置项 | 选项 | 默认值（推荐） |
 |--------|------|---------------|
 | **视频风格 (style)** | anime, realistic, comic-book, 3d-disney, watercolor, oil-painting, cyberpunk, chinese-ink | realistic |
@@ -85,6 +86,33 @@ curl -X POST "http://localhost:8000/api/project/start" \
 | **Video 模型** | wan2.6-i2v-flash, kling-v3, jimeng_ti2v_v30_pro | wan2.6-i2v-flash |
 | **联网搜索** | true, false | false |
 | **并发生成** | true, false | true |
+
+编号列表形式：
+1. 故事创意 (idea): [用户的创意内容]
+2. 视频风格 (style): realistic（默认值）
+   - 可选：anime, realistic, comic-book, 3d-disney, watercolor, oil-painting, cyberpunk, chinese-ink
+3. 视频比例 (video_ratio): 16:9（默认值）
+   - 可选：16:9, 9:16, 1:1, 4:3, 3:4
+4. LLM 模型: qwen3.5-plus（默认值）
+   - 可选：qwen3.5-plus, deepseek-chat, gpt-4o, gemini-2.5-flash
+5. VLM 模型: qwen-vl-plus（默认值）
+   - 可选：qwen-vl-plus, gemini-2.5-flash-image
+6. T2I 模型: doubao-seedream-5-0（默认值）
+   - 可选：doubao-seedream-5-0, wan2.6-t2i, jimeng_t2i_v40
+7. I2I 模型: doubao-seedream-5-0（默认值）
+   - 可选：doubao-seedream-5-0, wan2.6-image
+8. Video 模型: wan2.6-i2v-flash（默认值）
+   - 可选：wan2.6-i2v-flash, kling-v3, jimeng_ti2v_v30_pro
+9. 联网搜索: false（默认值）
+   - 可选：true, false
+10. 并发生成: true（默认值）
+   - 可选：true, false
+
+> **注意**：
+> - **所有参数必须都展示给用户**
+> - 根据用户消息渠道选择格式：
+>   - 飞书：使用 Markdown 表格
+>   - 微信：使用编号列表（微信不支持 Markdown 表格）
 
 ---
 

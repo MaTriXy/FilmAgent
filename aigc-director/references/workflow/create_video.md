@@ -63,6 +63,7 @@ curl -X POST "http://localhost:8000/api/project/{session_id}/execute/video_gener
 - 每个视频片段需附带分镜编号和描述（如"场景1-分镜1：角色A走进咖啡馆"）
 - 标注视频时长和状态（done/failed）
 - 按场景顺序依次发送
+- **发送前端 URL**（获取本地 IPv4 地址，构造 `http://{local_ip}:3000/?session={session_id}&stage=video_generation`）
 - 发送完整列表后，询问用户确认
 
 询问内容示例：

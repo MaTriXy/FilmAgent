@@ -50,6 +50,7 @@ curl -X POST "http://localhost:8000/api/project/{session_id}/execute/storyboard"
 **发送消息时必须**：
 - 使用文字形式发送表格（参考 [send_message/feishu.md](../send_message/feishu.md)）
 - 包含总时长统计
+- **发送前端 URL**（获取本地 IPv4 地址，构造 `http://{local_ip}:3000/?session={session_id}&stage=storyboard`）
 - 发送完整列表后，询问用户确认
 
 询问内容示例：

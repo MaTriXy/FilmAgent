@@ -76,8 +76,9 @@ curl -X POST "http://localhost:8000/api/project/{session_id}/execute/character_d
 4. **场景列表**：包含场景名、描述、视觉提示词
 
 **发送消息时必须**：
-- 参考 [send_message/feishu.md](../send_message/feishu.md) 发送图片给用户
+- 根据消息渠道参考 [send_message/feishu.md](../send_message/feishu.md) 或 [send_message/wechat.md](../send_message/wechat.md) 发送图片
 - 每张图片需附带简短说明（角色名/场景名）
+- **发送前端 URL**（获取本地 IPv4 地址，构造 `http://{local_ip}:3000/?session={session_id}&stage=character_design`）
 - 发送完整列表后，询问用户确认
 
 询问内容示例：

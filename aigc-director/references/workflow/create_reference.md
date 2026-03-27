@@ -61,6 +61,7 @@ curl -X POST "http://localhost:8000/api/project/{session_id}/execute/reference_g
 - 参考 [send_message/feishu.md](../send_message/feishu.md) 发送图片给用户
 - 每张参考图需附带分镜编号和简短描述（如"场景1-分镜1：角色A在咖啡馆"）
 - 按场景顺序依次发送
+- **发送前端 URL**（获取本地 IPv4 地址，构造 `http://{local_ip}:3000/?session={session_id}&stage=reference_generation`）
 - 发送完整列表后，询问用户确认
 
 询问内容示例：
