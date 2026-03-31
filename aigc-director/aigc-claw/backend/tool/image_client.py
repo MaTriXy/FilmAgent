@@ -98,7 +98,10 @@ class ImageClient:
             if image_paths:
                 print(f"Refs: {len(image_paths)}")
                 for p in image_paths:
-                    print(f" - {p}")
+                    if str(p).startswith("data:"):
+                        print(f" - [Base64图片]")
+                    else:
+                        print(f" - {p}")
             print(f"Model: {model}")
             if session_id:
                 print(f"Session ID: {session_id}")

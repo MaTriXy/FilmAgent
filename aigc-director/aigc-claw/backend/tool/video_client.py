@@ -94,7 +94,10 @@ class VideoClient:
         if Config.PRINT_MODEL_INPUT:
             print("---- VIDEO GENERATION REQUEST ----")
             print(f"Prompt: {prompt}")
-            print(f"Image: {image_path}")
+            if image_path and str(image_path).startswith("data:"):
+                print(f"Image: [Base64图片]")
+            else:
+                print(f"Image: {image_path}")
             print(f"Model: {model}")
             print(f"Duration: {duration}s")
             print(f"Shot Type: {shot_type}")

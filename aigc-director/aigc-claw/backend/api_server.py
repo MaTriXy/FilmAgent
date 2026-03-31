@@ -22,6 +22,7 @@ def setup_concurrent_logging():
 
     # 控制台处理器（主线程输出）
     console_handler = logging.StreamHandler()
+    console_handler.setLevel(logging.INFO)   # 只显示 INFO 及以上，避免 HTTP DEBUG 日志刷屏
     console_handler.setFormatter(logging.Formatter(
         '[%(asctime)s] [%(threadName)-12s] %(levelname)-8s %(message)s',
         datefmt='%H:%M:%S'

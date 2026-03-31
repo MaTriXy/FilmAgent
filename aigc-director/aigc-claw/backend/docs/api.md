@@ -89,15 +89,11 @@ MovieAssistant 是一个 AI 视频生成系统，提供 REST API 供外部调用
 **请求体**:
 ```json
 {
-  "session_id": "1773208355389",
-  "style": "anime",
-  "llm_model": "deepseek-chat",
-  "vlm_model": "qwen3.5-plus",
-  "image_t2i_model": "jimeng_t2i_v40",
-  "image_it2i_model": "jimeng_t2i_v40",
-  "video_model": "wan2.6-i2v-flash"
+  "style": "anime"
 }
 ```
+
+> 请求体参数与创建项目相同（可选），会覆盖项目中已有的对应参数。
 
 **响应**: SSE 流式返回，包含以下事件类型：
 - `progress`: 进度更新
@@ -176,15 +172,48 @@ MovieAssistant 是一个 AI 视频生成系统，提供 REST API 供外部调用
 
 ### 5. 更新阶段产物
 
-更新指定阶段的产物数据（如用户选择）。
+更新指定阶段的产物数据（如用户修改提示词、选择版本）。
 
 **接口**: `PATCH /api/project/{session_id}/artifact/{stage}`
 
-**请求体**:
+请求体格式**因阶段而异**：
+
+#### storyboard — 修改分镜（时长/剧情/视觉提示词）
 ```json
 {
-  "selected_logline": "选中的logan",
-  "scenes": [...]
+  "shots": [
+    {"shot_id": "shot_001_01", "duration": 5, "plot": "新剧情描述", "visual_prompt": "新视觉提示词"}
+  ]
+}
+```
+
+#### reference_generation — 修改视觉提示词
+```json
+{
+  "shots": [
+    {"shot_id": "shot_001_01", "visual_prompt": "新提示词"}
+  ]
+}
+```
+
+#### reference_generation — 选择参考图版本
+```json
+{
+  "shot_001_01": "code/result/image/xxx/shot_001_01_v2.jpg"
+}
+```
+
+#### video_generation — 修改片段描述/时长
+```json
+{
+  "shot_001_01": {"description": "新描述", "duration": 5}
+}
+```
+
+#### video_generation — 选择视频版本
+```json
+{
+  "shot_001_01": "code/result/video/xxx/shot_001_01_v2.mp4"
 }
 ```
 
@@ -194,21 +223,27 @@ MovieAssistant 是一个 AI 视频生成系统，提供 REST API 供外部调用
 
 ### 6. 干预阶段
 
-对已完成的阶段进行修改并重新执行。
+对已完成的阶段进行修改并重新执行（重新生成部分产物）。
 
 **接口**: `POST /api/project/{session_id}/intervene`
 
 **请求体**:
 ```json
 {
-  "stage": "script_generation",
+  "stage": "reference_generation",
   "modifications": {
-    "modified_script": "修改后的剧本内容"
+    "regenerate_scenes": ["shot_001_01", "shot_001_02"]
   }
 }
 ```
 
-**响应**: SSE 流式返回，同执行阶段。
+- `stage`：要干预的阶段
+- `modifications`：修改内容，目前支持 `regenerate_scenes`（要重新生成的镜头 ID 列表）
+
+**响应**: SSE 流式返回，包含以下事件类型：
+- `progress`: 进度更新
+- `stage_complete`: 阶段完成
+- `error`: 执行错误
 
 ---
 
@@ -306,10 +341,7 @@ echo "Session ID: $SESSION_ID"
 # 2. 执行第一阶段（剧本生成）- 监听 SSE
 curl -X POST "http://localhost:8000/api/project/${SESSION_ID}/execute/script_generation" \
   -H "Content-Type: application/json" \
-  -d '{
-    "session_id": "'$SESSION_ID'",
-    "style": "anime"
-  }'
+  -d '{"style": "anime"}'
 
 # 3. 获取剧本产物
 curl -s "http://localhost:8000/api/project/${SESSION_ID}/artifact/script_generation"
@@ -320,7 +352,7 @@ curl -s -X POST "http://localhost:8000/api/project/${SESSION_ID}/continue"
 # 5. 执行第二阶段（角色设计）
 curl -X POST "http://localhost:8000/api/project/${SESSION_ID}/execute/character_design" \
   -H "Content-Type: application/json" \
-  -d '{"session_id": "'$SESSION_ID'", "style": "anime"}'
+  -d '{"style": "anime"}'
 
 # 6. 确认并继续
 curl -s -X POST "http://localhost:8000/api/project/${SESSION_ID}/continue"
@@ -328,7 +360,7 @@ curl -s -X POST "http://localhost:8000/api/project/${SESSION_ID}/continue"
 # 7. 执行第三阶段（分镜设计）
 curl -X POST "http://localhost:8000/api/project/${SESSION_ID}/execute/storyboard" \
   -H "Content-Type: application/json" \
-  -d '{"session_id": "'$SESSION_ID'", "style": "anime"}'
+  -d '{"style": "anime"}'
 
 # 8. 确认并继续
 curl -s -X POST "http://localhost:8000/api/project/${SESSION_ID}/continue"
@@ -336,7 +368,7 @@ curl -s -X POST "http://localhost:8000/api/project/${SESSION_ID}/continue"
 # 9. 执行第四阶段（参考图生成）
 curl -X POST "http://localhost:8000/api/project/${SESSION_ID}/execute/reference_generation" \
   -H "Content-Type: application/json" \
-  -d '{"session_id": "'$SESSION_ID'", "style": "anime"}'
+  -d '{"style": "anime"}'
 
 # 10. 确认并继续
 curl -s -X POST "http://localhost:8000/api/project/${SESSION_ID}/continue"
@@ -344,7 +376,7 @@ curl -s -X POST "http://localhost:8000/api/project/${SESSION_ID}/continue"
 # 11. 执行第五阶段（视频生成）
 curl -X POST "http://localhost:8000/api/project/${SESSION_ID}/execute/video_generation" \
   -H "Content-Type: application/json" \
-  -d '{"session_id": "'$SESSION_ID'", "style": "anime"}'
+  -d '{"style": "anime"}'
 
 # 12. 确认并继续
 curl -s -X POST "http://localhost:8000/api/project/${SESSION_ID}/continue"
@@ -352,7 +384,7 @@ curl -s -X POST "http://localhost:8000/api/project/${SESSION_ID}/continue"
 # 13. 执行第六阶段（后期剪辑）
 curl -X POST "http://localhost:8000/api/project/${SESSION_ID}/execute/post_production" \
   -H "Content-Type: application/json" \
-  -d '{"session_id": "'$SESSION_ID'", "style": "anime"}'
+  -d '{"style": "anime"}'
 ```
 
 ### 使用 jq 简化
