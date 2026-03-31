@@ -29,7 +29,7 @@
 
 <div align="center">
 
-📺 [**Bilibili**](https://www.youtube.com/@imryanxu)  ▶️ [**YouTube**](https://www.youtube.com/@imryanxu)  📖 [**集成指南**](https://github.com/HITsz-TMG/AIGC-Claw?tab=readme-ov-file#%E6%96%B9%E5%BC%8F%E4%BA%8Copenclaw-%E8%87%AA%E5%8A%A8%E9%85%8D%E7%BD%AE)  🦀 [**ClawHub**](https://clawhub.ai/hit-cxf/aigc-director)
+📺 [**Bilibili**](https://space.bilibili.com/2031891503?spm_id_from=333.1007.0.0)  ▶️ [**YouTube**](https://www.youtube.com/@imryanxu)  📖 [**集成指南**](https://github.com/HITsz-TMG/AIGC-Claw?tab=readme-ov-file#%E6%96%B9%E5%BC%8F%E4%BA%8Copenclaw-%E8%87%AA%E5%8A%A8%E9%85%8D%E7%BD%AE)  🦀 [**ClawHub**](https://clawhub.ai/hit-cxf/aigc-director)
 
 <a href="https://trendshift.io/repositories/12871" target="_blank"><img src="https://trendshift.io/api/badge/repositories/12871" alt="HITsz-TMG%2FFilmAgent | Trendshift" style="width: 250px; height: 55px;" width="250" height="55"/></a>
 
@@ -38,16 +38,16 @@
 
 ## 💥 News
 
-- `2026/3/27`: 🚀 AIGC-Claw 正式发布，支持视频生成全流程
-
+- `2026/3/27`: 🚀 AIGC-Claw 正式发布，支持从想法到视频生成全流程
 
 
 
 ## 📖 项目介绍
 
-AIGC-Claw 是一个 AI 创意视频生成系统。你只需要输入一个创意主题，系统会将其转化为可交付的视频作品。
+AIGC-Claw 是一个面向创意视频生产的 AI 导演系统。你只需要给出一句想法、一个故事梗概，甚至一个模糊概念，系统就会把它拆解为可执行的影视工作流，持续产出可查看、可确认、可修改、可交付的中间资产，最终生成完整成片。
 
-流程覆盖完整影视制作链路：剧本创作、角色设计、分镜规划、参考图生成、视频生成、后期剪辑。每个阶段都会产出可视化结果并支持确认后继续，兼顾自动化效率与可控性。
+它不是单点式的“文生视频”工具，而是一条覆盖 **剧本策划 → 角色/场景设计 → 分镜规划 → 参考图生成 → 视频生成 → 后期剪辑** 的全流程生产线。相比只给你一个黑盒结果，AIGC-Claw 更像一个真正可协作的 AI 导演团队：前一阶段决定后一阶段，所有关键节点都可视化、可编辑、可继续生成。
+
 
 
 ## 📺 AIGC-Claw 示例
@@ -89,14 +89,12 @@ AIGC-Claw 是一个 AI 创意视频生成系统。你只需要输入一个创意
 
 ## ✨ 功能特性
 
-| 阶段 | 功能 | 描述 |
-|:---:|---|---|
-| 1 | 🎭 **剧本生成** | 输入创意自动生成结构化剧本，支持长视频和微电影模式 |
-| 2 | 👤 **角色设计** | AI 生成角色设定图（四视图）和场景背景图 |
-| 3 | 🎬 **分镜设计** | 智能拆分镜头脚本，设计镜头语言 |
-| 4 | 🖼️ **参考图生成** | 为每个镜头生成高精度参考图 |
-| 5 | 🎥 **视频生成** | 图生视频 / 文生视频 |
-| 6 | ✂️ **后期剪辑** | 自动拼接视频片段，添加转场效果 |
+| 能力 | 说明 |
+|---|---|
+| 🎬 **从创意到成片的全流程生成** | 一条链路打通剧本、角色、分镜、参考图、视频片段与后期剪辑，把零散生成能力升级为完整视频生产工作流。 |
+| 🖼️ **分镜驱动的可控创作** | 通过结构化剧本、分镜规划与参考图生成，让角色一致性、镜头表达和画面风格更稳定、更可控。 |
+| ✍️ **可修改、可续写、可继续生成** | 支持剧情 / 分镜智能续写，也支持角色、参考图、视频阶段修改后重新生成，避免每次都从头开始。 |
+| 📲 **本地部署、多端协作、产物留存** | 支持 Web 界面、微信 / 飞书协作、OpenClaw Skill 集成，并对剧本、图片、视频片段和最终成片进行全链路留存。 |
 
 ---
 
@@ -169,36 +167,10 @@ clawhub install aigc-director
 
 ---
 
-
-## 📁 项目结构
-
-```
-AIGC-Claw/
-├── aigc-director/                    # 🎯 OpenClaw Agent Skill
-│   ├── SKILL.md                      # Agent 工作流规则定义
-│   ├── CLAUDE.md                     # Claude Code 开发指引
-│   ├── README.md                     # Skill 项目说明
-│   ├── references/                   # API 参考文档
-│   │   ├── init_project/             # 项目初始化指南
-│   │   ├── run_project/              # 服务启动指南
-│   │   ├── workflow/                 # 六阶段工作流 API
-│   │   ├── sandbox/                  # 临时工作台 API
-│   │   └── send_message/             # 消息推送集成
-│   └── aigc-claw/                    # 💻 实际代码项目
-│       ├── backend/                  # Python FastAPI 后端
-│       │   ├── api_server.py         # API 入口
-│       │   ├── core/                 # 核心模块
-│       │   │   ├── orchestrator.py   # 工作流引擎
-│       │   │   └── agents/           # 6 个阶段 Agent
-│       │   └── tool/                 # 外部 API 客户端
-│       └── frontend/                 # Next.js 前端
-├── FilmAgent/                        # 🎬 原FilmAgent项目
-└── README.md                         # 主 README
-```
-
----
-
 ## 🔧 配置说明
+
+<details>
+<summary><b>点击展开完整环境要求和变量</b></summary>
 
 ### 环境要求
 
@@ -239,14 +211,23 @@ DEEPSEEK_API_KEY=your_key
 | **图生图** | doubao-seedream-5-0, jimeng_t2i_v40, wan2.6-image |
 | **视频生成** | wan2.6-i2v-flash, kling-v3, jimeng_ti2v_v30_pro |
 
+</details>
+
+
+## 🙏 致谢
+
+AIGC-Claw 的想法和设计受到了 [AutoResearchClaw](https://github.com/aiming-lab/AutoResearchClaw)、[huobao-drama](https://github.com/chatfire-AI/huobao-drama)、[LibTV](https://www.liblib.tv/) 与 [libtv-skills](https://github.com/libtv-labs/libtv-skills) 的启发。
+
+
 
 ## 📚 系列工作
 
 | 框架图 | 论文信息 |
 |:---:|---|
-| <img src="https://github.com/HITsz-TMG/FilmAgent/blob/main/pics/framework.png?raw=true" width="420" alt="FilmAgent framework"/> | **FilmAgent: Automating Virtual Film Production Through a Multi-Agent Collaborative Framework**<br>Authors: Xu, Zhenran; Wang, Jifang; Wang, Longyue; Li, Zhouyi; Shi, Senbao; Hu, Baotian; Zhang, Min<br>[[Paper](https://doi.org/10.1145/3681758.3698014)] [[GitHub](https://github.com/HITsz-TMG/AIGC-Claw/blob/main/FilmAgent.md)] |
-| <img src="https://github.com/HITsz-TMG/Anim-Director/blob/main/Anim-Director/assets/visualeg.png" width="420" alt="Anim-Director result"/> | **Anim-Director: A Large Multimodal Model Powered Agent for Controllable Animation Video Generation**<br>Authors: Li, Yunxin; Shi, Haoyuan; Hu, Baotian; Wang, Longyue; Zhu, Jiashun; Xu, Jinyi; Zhao, Zhen; Zhang, Min<br>[[Paper](https://doi.org/10.1145/3680528.3687688)] [[GitHub](https://github.com/HITsz-TMG/Anim-Director/tree/main/Anim-Director)] |
-| <img src="https://raw.githubusercontent.com/HITsz-TMG/Anim-Director/main/AniMaker/assets/pipeline.png" width="420" alt="AniMaker pipeline"/> | **AniMaker: Multi-Agent Animated Storytelling with MCTS-Driven Clip Generation**<br>Authors: Shi, Haoyuan; Li, Yunxin; Chen, Xinyu; Wang, Longyue; Hu, Baotian; Zhang, Min<br>[[Paper](https://doi.org/10.1145/3757377.3764009)] [[GitHub](https://github.com/HITsz-TMG/Anim-Director/tree/main/AniMaker)] |
+| <img src="https://github.com/HITsz-TMG/FilmAgent/blob/main/pics/framework.png?raw=true" width="420" alt="FilmAgent framework"/> | **[SIGGRAPH Asia 2024] FilmAgent: Automating Virtual Film Production Through a Multi-Agent Collaborative Framework**<br>*Zhenran Xu, Jifang Wang, Longyue Wang, Zhouyi Li, Senbao Shi, Baotian Hu, Min Zhang*<br>[[Paper](https://doi.org/10.1145/3681758.3698014)] [[GitHub](https://github.com/HITsz-TMG/AIGC-Claw/blob/main/FilmAgent.md)] |
+| <img src="https://github.com/HITsz-TMG/Anim-Director/blob/main/Anim-Director/assets/visualeg.png" width="420" alt="Anim-Director result"/> | **[SIGGRAPH Asia 2024] Anim-Director: A Large Multimodal Model Powered Agent for Controllable Animation Video Generation**<br>*Yunxin Li, Haoyuan Shi, Baotian Hu, Longyue Wang, Jiashun Zhu, Jinyi Xu, Zhen Zhao, Min Zhang*<br>[[Paper](https://doi.org/10.1145/3680528.3687688)] [[GitHub](https://github.com/HITsz-TMG/Anim-Director/tree/main/Anim-Director)] |
+| <img src="https://raw.githubusercontent.com/HITsz-TMG/Anim-Director/main/AniMaker/assets/pipeline.png" width="420" alt="AniMaker pipeline"/> | **[SIGGRAPH Asia 2025] AniMaker: Multi-Agent Animated Storytelling with MCTS-Driven Clip Generation**<br>*Haoyuan Shi, Yunxin Li, Xinyu Chen, Longyue Wang, Baotian Hu, Min Zhang*<br>[[Paper](https://doi.org/10.1145/3757377.3764009)] [[GitHub](https://github.com/HITsz-TMG/Anim-Director/tree/main/AniMaker)] |
+
 
 <p align="center">
   <sub>Built with 🦞 by the HITsz-TMG team</sub>
