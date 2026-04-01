@@ -31,7 +31,7 @@
 
 🌐 [**English README**](./README_EN.md)  📺 [**Bilibili**](https://space.bilibili.com/2031891503?spm_id_from=333.1007.0.0)  ▶️ [**YouTube**](https://www.youtube.com/@imryanxu)  📖 [**集成指南**](https://github.com/HITsz-TMG/AIGC-Claw?tab=readme-ov-file#%E6%96%B9%E5%BC%8F%E4%BA%8Copenclaw-%E8%87%AA%E5%8A%A8%E9%85%8D%E7%BD%AE)   🦀 [**ClawHub**](https://clawhub.ai/hit-cxf/aigc-director) 
 
-<a href="https://trendshift.io/repositories/12871" target="_blank"><img src="https://trendshift.io/api/badge/repositories/12871" alt="HITsz-TMG%2FFilmAgent | Trendshift" style="width: 250px; height: 55px;" width="250" height="55"/></a>
+<a href="https://trendshift.io/repositories/24295" target="_blank"><img src="https://trendshift.io/api/badge/repositories/24295" alt="HITsz-TMG%2FAIGC-Claw | Trendshift" style="width: 250px; height: 55px;" width="250" height="55"/></a>
 
 </div>
 
