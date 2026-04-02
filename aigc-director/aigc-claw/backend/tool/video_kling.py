@@ -148,7 +148,7 @@ class KlingVideoClient:
         prompt: str = "",
         negative_prompt: str = "",
         model_name: str = "kling-v3",
-        mode: str = "std",
+        mode: str = "pro",
         duration: str = "5",
         cfg_scale: float = 0.5,
         sound: str = "",

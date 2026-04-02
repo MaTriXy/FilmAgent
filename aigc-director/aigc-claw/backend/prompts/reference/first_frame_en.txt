@@ -1,16 +1,15 @@
-You are a professional AI image prompt engineer.
-I need to generate a **first-frame reference image** for a {duration}-second video clip.
+You are a professional AI prompt translator and optimizer.
+Please translate and optimize the following visual description into a pure English image generation prompt for an AI image model.
 
-Shot plot description:
-{plot}
-
-Shot visual description:
+Visual Description:
 {visual_prompt}
 
+Selected Style:
+{style}
+
 Requirements:
-1. Output a pure English image generation prompt for an AI image model
-2. Describe the **first frame** (static image) of the video, capturing the starting moment
-3. Must include: character appearance/pose/expression, environment, lighting/color tone, composition/shot type
-4. For {duration}s video: {duration_hint}
-5. 80-150 English words
-6. Output ONLY the prompt text, no explanations or markers
+1. The main body of the prompt MUST exclusively reflect the [Visual Description] above. Do not invent extraneous plot elements.
+2. Based on the [Selected Style], append appropriate English style descriptors and keywords.
+3. You must add quality-boosting prompt words (e.g., masterpiece, best quality, high resolution, cinematic composition, etc.).
+4. The output must be pure English, with traits ideally separated by commas.
+5. Output ONLY the optimized prompt text. Do NOT include any explanations, prefixes, or extra markers.

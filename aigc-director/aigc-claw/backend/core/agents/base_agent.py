@@ -4,8 +4,11 @@
 """
 
 import logging
+import os
+import json
 from abc import ABC, abstractmethod
 from typing import Any, Optional, Dict, Callable
+from config import settings
 
 logger = logging.getLogger(__name__)
 
@@ -17,6 +20,42 @@ class AgentInterface(ABC):
         self.name = name
         self.cancellation_check: Optional[Callable] = None
         self.progress_callback: Optional[Callable] = None
+
+    def _merge_session_params(self, input_data: Any) -> Dict:
+        """从 session.json 补齐缺失的参数"""
+        if not isinstance(input_data, dict):
+            return {}
+            
+        sid = input_data.get("session_id")
+        if not sid:
+            return input_data
+
+        session_file = os.path.join(settings.SESSION_DIR, f"{sid}.json")
+        if not os.path.exists(session_file):
+            return input_data
+
+        try:
+            with open(session_file, 'r', encoding='utf-8') as f:
+                session_data = json.load(f)
+            
+            # 基础参数列表
+            keys_to_merge = [
+                "style", "video_ratio", "llm_model", "vlm_model", 
+                "image_t2i_model", "image_it2i_model", "video_model",
+                "video_style", "expand_idea"
+            ]
+            
+            merged_data = input_data.copy()
+            for key in keys_to_merge:
+                # 只有当 input_data 中缺失该参数时，才从 session 中补齐
+                if key not in merged_data or not merged_data[key]:
+                    if key in session_data:
+                        merged_data[key] = session_data[key]
+            
+            return merged_data
+        except Exception as e:
+            logger.error(f"Error merging session params: {e}")
+            return input_data
 
     def set_cancellation_check(self, fn: Callable):
         self.cancellation_check = fn

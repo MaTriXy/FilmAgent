@@ -965,6 +965,7 @@ class SandboxI2IRequest(BaseModel):
     model: str
     prompt: str
     image: str  # 参考图片URL或base64
+    ratio: Optional[str] = "16:9"
 
 
 class SandboxVideoRequest(BaseModel):
@@ -1070,8 +1071,8 @@ async def sandbox_t2i(req: SandboxT2IRequest):
     import traceback
     client = ImageClient()
     try:
-        print(f"[T2I] Generating image with model: {req.model}, prompt: {req.prompt[:50]}...")
-        result = client.generate_image(req.prompt, model=req.model, image_paths=None)
+        print(f"[T2I] Generating image with model: {req.model}, prompt: {req.prompt[:50]}..., ratio: {req.ratio}")
+        result = client.generate_image(req.prompt, model=req.model, image_paths=None, video_ratio=req.ratio)
         print(f"[T2I] Result: {result}")
         # result 是图片路径列表
         # 保存到历史记录
@@ -1095,7 +1096,7 @@ async def sandbox_i2i(req: SandboxI2IRequest):
     from tool.image_client import ImageClient
     client = ImageClient()
     try:
-        result = client.generate_image(req.prompt, image_paths=[req.image], model=req.model)
+        result = client.generate_image(req.prompt, image_paths=[req.image], model=req.model, video_ratio=req.ratio)
         # 保存到历史记录
         record_id = _add_record(
             tool="i2i",

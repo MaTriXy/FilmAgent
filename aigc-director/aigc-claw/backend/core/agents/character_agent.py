@@ -137,7 +137,8 @@ class CharacterDesignerAgent(AgentInterface):
         else:
             base_prompt = self._setting_prompt(name, desc, style)
 
-        size = "1920*1080"
+        video_ratio = "16:9"
+        resolution = "1080P"
         current_prompt = base_prompt
 
         for iteration in range(max_iterations):
@@ -149,7 +150,7 @@ class CharacterDesignerAgent(AgentInterface):
             try:
                 paths = img_client.generate_image(
                     prompt=current_prompt, model=t2i_model,
-                    session_id=str(sid), save_dir=save_dir, size=size,
+                    session_id=str(sid), save_dir=save_dir, video_ratio=video_ratio, resolution=resolution,
                 )
                 if not paths:
                     continue

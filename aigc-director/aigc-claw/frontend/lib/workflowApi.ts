@@ -62,6 +62,8 @@ export async function startProject(params: {
   video_model?: string;
   scene_number?: number;
   enable_concurrency?: boolean;
+  web_search?: boolean;
+  expand_idea?: boolean;
 }): Promise<{ session_id: string; status: string; params: any }> {
   const resp = await fetch('/api/project/start', {
     method: 'POST',

@@ -178,7 +178,7 @@ class ReferenceGeneratorAgent(AgentInterface):
     def _generate_one(self, img_client, sid: str, shot: dict,
                       first_frame_prompt: str, refs: List[str],
                       style: str, it2i_model: str, t2i_model: str,
-                      ref_size: str = "1920*1080", vlm_model: str = "qwen3.5-plus",
+                      video_ratio: str = "16:9", resolution: str = "1080P", vlm_model: str = "qwen3.5-plus",
                       character_description: str = "", setting_description: str = "",
                       max_versions: int = 3) -> tuple:
         """生成单个分镜参考图，返回 (shot_id, path_or_None, eval_result)
@@ -224,7 +224,8 @@ class ReferenceGeneratorAgent(AgentInterface):
                     model=model,
                     session_id=str(sid),
                     save_dir=save_dir,
-                    size=ref_size,
+                    video_ratio=video_ratio,
+                    resolution=resolution,
                 )
                 if not paths:
                     continue
@@ -403,7 +404,7 @@ class ReferenceGeneratorAgent(AgentInterface):
         }
 
     def _update_scene2image(self, sid: str, shots: list, result_file: str,
-                            first_frame_prompts: dict) -> None:
+                            first_frame_prompts: dict, selected_images: dict = None) -> None:
         """写回 scene2image 到结果文件
         scene2image[shot_id] = {
             local_path: 当前最新版本图片路径,
@@ -413,15 +414,24 @@ class ReferenceGeneratorAgent(AgentInterface):
             duration: 分镜时长,
         }
         """
+        if selected_images is None:
+            selected_images = {}
+            
         with open(result_file, 'r', encoding='utf-8') as f:
             res = json.load(f)
-        scene_images = {}
+        scene_images = res.get(str(sid), {}).get('scene2image', {})
         for shot in shots:
             shot_id = shot['shot_id']
-            versions = self._list_versions(sid, shot_id)
-            if versions:
+            # 优先使用实时传入的选定路径，否则寻找磁盘已有版本
+            selected = selected_images.get(shot_id)
+            if not selected:
+                versions = self._list_versions(sid, shot_id)
+                if versions:
+                    selected = versions[-1]
+            
+            if selected:
                 scene_images[shot_id] = {
-                    "local_path": versions[-1],
+                    "local_path": selected,
                     "prompt": first_frame_prompts.get(shot_id, shot.get('visual_prompt', '')),
                     "plot": shot.get('plot', ''),
                     "video_prompt": shot.get('visual_prompt', ''),
@@ -438,10 +448,14 @@ class ReferenceGeneratorAgent(AgentInterface):
         from tool.image_client import ImageClient
         from tool.llm_client import LLM
 
+        # 从 session.json 补齐缺失的参数（关键修复：防止前端漏传导致的默认值回退）
+        input_data = self._merge_session_params(input_data)
+
         sid = input_data["session_id"]
+        
         style = input_data.get("style", "anime")
         video_ratio = input_data.get("video_ratio", "16:9")
-        ref_size = ratio_to_size(video_ratio)
+        resolution = input_data.get("resolution", "1080P")
         llm_model = input_data.get("llm_model", "") or settings.LLM_MODEL
         t2i = input_data.get("image_t2i_model", "") or settings.IMAGE_T2I_MODEL
         it2i = input_data.get("image_it2i_model", "") or settings.IMAGE_IT2I_MODEL
@@ -519,9 +533,12 @@ class ReferenceGeneratorAgent(AgentInterface):
 
                 llm = LLM()
 
+                selected_images = {}
+
                 def regen_run():
                     total = len(regen_scenes)
                     done = 0
+                    nonlocal selected_images
                     # 每分镜5个步骤：准备(1)、生成(3)、完成(1)
                     steps_per_shot = 5
                     total_steps = total * steps_per_shot
@@ -551,7 +568,7 @@ class ReferenceGeneratorAgent(AgentInterface):
                             fut = executor.submit(
                                 self._generate_one, img_client, sid,
                                 shot, prompt_map[shot_id], refs,
-                                style, it2i, t2i, ref_size, vlm_model,
+                                style, it2i, t2i, video_ratio, resolution, vlm_model,
                                 character_description=char_desc, setting_description=set_desc
                             )
                             futs[fut] = shot_id
@@ -566,6 +583,7 @@ class ReferenceGeneratorAgent(AgentInterface):
                             step = done * steps_per_shot
                             pct = calc_pct_regen(step)
                             if result_path:
+                                selected_images[shot_id_done] = result_path
                                 versions = self._list_versions(sid, shot_id_done)
                                 self._report_progress("参考图", f"完成: {shot_id_done}", pct, data={
                                     "asset_complete": {
@@ -594,11 +612,11 @@ class ReferenceGeneratorAgent(AgentInterface):
                 loop = asyncio.get_running_loop()
                 await loop.run_in_executor(None, regen_run)
 
-            # 重新生成后更新 scene2image（同步最新版本信息）
-            self._update_scene2image(sid, shots, result_file, {})
+                # 重新生成后更新 scene2image（同步最新版本信息）
+                self._update_scene2image(sid, fresh_shots, result_file, {}, selected_images)
 
-            self._report_progress("参考图", "完成", 100)
-            return self._build_payload(sid, shots)
+                self._report_progress("参考图", "完成", 100)
+                return self._build_payload(sid, fresh_shots)
 
         # ═══ 正常流程：全量生成 ═══
         self._report_progress("参考图", "加载分镜数据...", 5)
@@ -612,6 +630,7 @@ class ReferenceGeneratorAgent(AgentInterface):
         def run():
             # 筛选需要生成的（跳过已有图的）
             pending_shots = []
+            selected_images = {}
             for shot in shots:
                 shot_id = shot['shot_id']
                 existing = self._list_versions(sid, shot_id)
@@ -638,10 +657,29 @@ class ReferenceGeneratorAgent(AgentInterface):
             self._report_progress("参考图", "准备生成...", calc_pct(0))
 
             # 步骤2-6(每分镜)：准备提示词
-            first_frame_prompts = {}  # shot_id → prompt
+            first_frame_prompts = {}  # shot_id -> prompt
+            style = input_data.get('video_style', '')
             for i, shot in enumerate(pending_shots):
                 shot_id = shot['shot_id']
-                ff_prompt = shot.get('visual_prompt', '')
+                visual_prompt = shot.get('visual_prompt', '')
+                
+                # Load the new translation/style prompt template
+                prompt_text = load_prompt('reference', "first_frame", 'zh' if is_zh else 'en').format(
+                    visual_prompt=visual_prompt, 
+                    style=style
+                )
+                
+                # Call LLM to translate and append style tags
+                try:
+                    ff_prompt_resp = llm.query(prompt_text, max_tokens=1000, temperature=0.7)
+                    if hasattr(ff_prompt_resp, 'content'):
+                        ff_prompt = ff_prompt_resp.content.strip()
+                    else:
+                        ff_prompt = str(ff_prompt_resp).strip()
+                except Exception as e:
+                    logger.error(f"Error generating first-frame prompt for {shot_id}: {e}")
+                    ff_prompt = visual_prompt  # Fallback to pure visual prompt
+                
                 first_frame_prompts[shot_id] = ff_prompt
                 logger.info(f"[{shot_id}] first-frame prompt: {ff_prompt[:80]}...")
                 step = i * steps_per_shot + 1
@@ -665,7 +703,7 @@ class ReferenceGeneratorAgent(AgentInterface):
                     fut = executor.submit(
                         self._generate_one, img_client, sid,
                         shot, ff_prompt, refs,
-                        style, it2i, t2i, ref_size, vlm_model,
+                        style, it2i, t2i, video_ratio, resolution, vlm_model,
                         character_description=char_desc, setting_description=set_desc
                     )
                     futs[fut] = shot_id
@@ -682,6 +720,7 @@ class ReferenceGeneratorAgent(AgentInterface):
                     step = done * steps_per_shot
                     pct = calc_pct(step)
                     if result_path:
+                        selected_images[shot_id_done] = result_path
                         versions = self._list_versions(sid, shot_id_done)
                         self._report_progress("参考图", f"完成: {shot_id_done}", pct, data={
                             "asset_complete": {
@@ -714,7 +753,7 @@ class ReferenceGeneratorAgent(AgentInterface):
                 self._report_progress("参考图", "保存结果...", 96)
 
             # 写回结果文件
-            self._update_scene2image(sid, shots, result_file, first_frame_prompts)
+            self._update_scene2image(sid, shots, result_file, first_frame_prompts, selected_images)
 
         loop = asyncio.get_running_loop()
         try:

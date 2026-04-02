@@ -69,6 +69,7 @@ class VideoClient:
         duration: int = 5,
         shot_type: str = "multi",
         sound: str = "",
+        video_ratio: str = "16:9",
     ) -> str:
         """
         生成视频
@@ -107,7 +108,7 @@ class VideoClient:
         model_lower = model.lower()
 
         if "jimeng" in model_lower:
-            return self._generate_jimeng(prompt, image_path, save_path, model)
+            return self._generate_jimeng(prompt, image_path, save_path, model, video_ratio)
         elif "kling" in model_lower:
             return self._generate_kling(prompt, image_path, save_path, model, duration, sound)
         else:
@@ -139,12 +140,14 @@ class VideoClient:
         image_path: str,
         save_path: str,
         model: str,
+        video_ratio: str = "16:9",
     ) -> str:
         """通过即梦模型生成视频"""
         logger.info(f"VideoClient: 路由至即梦 model={model}")
         task_id = self.jimeng_client.generate_video(
             prompt=prompt,
             image_path=image_path,
+            aspect_ratio=video_ratio,
         )
 
         # 轮询获取结果

@@ -68,27 +68,66 @@ class ImageClient:
         # Default save directory
         self.base_save_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "code", "result", "image_client")
 
-    def generate_image(self, 
-                       prompt: str, 
-                       image_paths: Optional[List[str]] = None, 
+    def generate_image(self,
+                       prompt: str,
+                       image_paths: Optional[List[str]] = None,
                        model: str = "wan2.6-t2i",
                        save_dir: Optional[str] = None,
                        session_id: Optional[str] = None,
-                       size: Optional[str] = "1920*1080") -> List[str]:
+                       video_ratio: Optional[str] = "16:9",
+                       resolution: Optional[str] = "1080P") -> List[str]:
         """
         Generate images based on prompt and optional reference images.
-        
+
         Args:
             prompt: Text prompt for generation.
             image_paths: List of local file paths or URLs for reference images.
             model: Model name to determine which provider to use.
             save_dir: Custom directory to save downloaded images.
             session_id: Session ID for organizing saved files (especially for JiMeng)
-            size: Desired size of the generated image, e.g., "1024*1024" or "1920*1080".
-            
+            video_ratio: Aspect ratio of the video, e.g., "16:9", "9:16", "4:3", "3:4", "1:1".
+            resolution: Resolution string, e.g., "720P", "1080P", "2K", "4K".
+
         Returns:
             List of absolute file paths of the generated images.
         """
+        # Determine size from video_ratio and resolution
+        size_map = {
+            "16:9": {
+                "720P": "1280*720",
+                "1080P": "1920*1080",
+                "2K": "2560*1440",
+                "4K": "3840*2160"
+            },
+            "9:16": {
+                "720P": "720*1280",
+                "1080P": "1080*1920",
+                "2K": "1440*2560",
+                "4K": "2160*3840"
+            },
+            "4:3": {
+                "720P": "960*720",
+                "1080P": "1440*1080",
+                "2K": "2560*1920",
+                "4K": "3840*2880"
+            },
+            "3:4": {
+                "720P": "720*960",
+                "1080P": "1080*1440",
+                "2K": "1920*2560",
+                "4K": "2880*3840"
+            },
+            "1:1": {
+                "720P": "720*720",
+                "1080P": "1080*1080",
+                "2K": "2560*2560",
+                "4K": "3840*3840"
+            }
+        }
+        
+        # Default fallback if ratio or resolution is not found
+        size = size_map.get(video_ratio, size_map["16:9"]).get(resolution, "1920*1080")
+
         if not model:
             model = "wan2.6-t2i"
 
@@ -103,6 +142,9 @@ class ImageClient:
                     else:
                         print(f" - {p}")
             print(f"Model: {model}")
+            print(f"Video Ratio: {video_ratio}")
+            print(f"Resolution: {resolution}")
+            print(f"Final Size: {size}")
             if session_id:
                 print(f"Session ID: {session_id}")
             print("-" * 30)

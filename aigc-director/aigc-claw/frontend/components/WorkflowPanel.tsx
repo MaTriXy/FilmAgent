@@ -434,12 +434,15 @@ export default function WorkflowPanel() {
       const result = await startProject({
         idea: params.idea,
         style: params.style,
+        video_ratio: params.video_ratio,
         llm_model: params.llm_model,
         vlm_model: params.vlm_model,
         image_t2i_model: params.image_t2i_model,
         image_it2i_model: params.image_it2i_model,
         video_model: params.video_model,
         enable_concurrency: params.enable_concurrency,
+        web_search: params.web_search,
+        expand_idea: params.expand_idea,
       });
       setSessionId(result.session_id);
 
@@ -460,6 +463,7 @@ export default function WorkflowPanel() {
         idea: params.idea,
         session_id: result.session_id,
         style: params.style,
+        video_ratio: params.video_ratio,
         llm_model: params.llm_model,
         vlm_model: params.vlm_model,
         image_t2i_model: params.image_t2i_model,
@@ -540,6 +544,7 @@ export default function WorkflowPanel() {
           image_t2i_model: projectParams?.image_t2i_model,
           image_it2i_model: projectParams?.image_it2i_model,
           video_model: projectParams?.video_model,
+          video_ratio: projectParams?.video_ratio,
           video_sound: videoSound,
           video_shot_type: videoShotType,
         };
@@ -619,6 +624,20 @@ export default function WorkflowPanel() {
   // ── 用户介入修改 ──
   const handleIntervene = async (stageId: string, modifications: Record<string, any>) => {
     if (!sessionId) return;
+    
+    // 构建完整的 inputData 传给后端，确保比例等参数能传递
+    const inputData: Record<string, any> = {
+      ...modifications,
+      session_id: sessionId,
+      style: projectParams?.style,
+      video_ratio: projectParams?.video_ratio,
+      llm_model: projectParams?.llm_model,
+      vlm_model: projectParams?.vlm_model,
+      image_t2i_model: projectParams?.image_t2i_model,
+      image_it2i_model: projectParams?.image_it2i_model,
+      video_model: projectParams?.video_model,
+    };
+
     // 设置 running 状态以便显示进度条（如 Logline 选择后生成剧本）
     // 若选择了 Logline，将其保存到 artifact 以便 ScriptStage 在生成期间展示
     // 若选择了模式，保留已选 Logline 并设置 generating 状态
@@ -630,7 +649,7 @@ export default function WorkflowPanel() {
     setIsRunning(true);
     updateStageState(stageId, { status: 'running', progress: 0, progressMessage: '处理中...', ...(artifactPatch ? { artifact: artifactPatch } : {}) });
     try {
-      const response = await intervene(sessionId, stageId, modifications);
+      const response = await intervene(sessionId, stageId, inputData);
       for await (const event of parseStreamEvents(response)) {
         if (event.type === 'progress') {
           updateStageState(stageId, {
@@ -887,8 +906,7 @@ export default function WorkflowPanel() {
         image_t2i_model: projectParams?.image_t2i_model,
         image_it2i_model: projectParams?.image_it2i_model,
         video_model: projectParams?.video_model,
-        video_sound: videoSound,
-        video_shot_type: videoShotType,
+            video_ratio: projectParams?.video_ratio,
       };
 
       // 尝试获取场景数
@@ -992,6 +1010,7 @@ export default function WorkflowPanel() {
           video_model: s.video_model || '',
           expand_idea: s.expand_idea || false,
           enable_concurrency: s.enable_concurrency || false,
+          web_search: s.web_search || false,
         });
       }
 
@@ -1055,6 +1074,8 @@ export default function WorkflowPanel() {
         video_model: projectParams.video_model,
         video_ratio: projectParams.video_ratio,
         enable_concurrency: projectParams.enable_concurrency || false,
+        web_search: projectParams.web_search || false,
+        expand_idea: projectParams.expand_idea || false,
       }
     : undefined;
 

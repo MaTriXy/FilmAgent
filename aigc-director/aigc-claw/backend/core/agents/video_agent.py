@@ -64,7 +64,8 @@ class VideoDirectorAgent(AgentInterface):
     def _generate_one(self, sid: str, shot_id: str, prompt: str,
                       img_path: str, video_model: str,
                       duration: int = 5, sound: str = "",
-                      shot_type: str = "multi") -> tuple:
+                      shot_type: str = "multi",
+                      video_ratio: str = "16:9") -> tuple:
         """生成单个分镜视频，返回 (shot_id, path_or_None)"""
         # 取消时直接跳过，不抛异常，以保留已生成的部分结果
         if self.cancellation_check and self.cancellation_check():
@@ -87,6 +88,7 @@ class VideoDirectorAgent(AgentInterface):
                 duration=duration,
                 sound=sound,
                 shot_type=shot_type,
+                video_ratio=video_ratio,
             )
             return shot_id, save_path
         except Exception as e:
@@ -380,6 +382,9 @@ class VideoDirectorAgent(AgentInterface):
 
     async def process(self, input_data: Any, intervention: Optional[Dict] = None) -> Dict:
         from config import settings
+        
+        # 从 session.json 补齐缺失的参数（关键修复：防止前端漏传导致的默认值回退）
+        input_data = self._merge_session_params(input_data)
 
         sid = input_data["session_id"]
         video_model = input_data.get("video_model", "") or settings.VIDEO_MODEL
@@ -395,10 +400,7 @@ class VideoDirectorAgent(AgentInterface):
         
         video_sound = input_data.get("video_sound", "on")
         video_shot_type = input_data.get("video_shot_type", "multi")
-        sound_param = "" if video_sound == "off" else video_sound
-
-        logger.info(f"VideoDirectorAgent: sid={sid}, video_model={video_model}, sound={video_sound}, shot_type={video_shot_type}")
-
+        video_ratio = input_data.get("video_ratio", "16:9")
         result_file = os.path.join(settings.RESULT_DIR, 'script', f'script_{sid}.json')
 
         # 读取数据
@@ -468,7 +470,7 @@ class VideoDirectorAgent(AgentInterface):
                             fut = executor.submit(
                                 self._generate_one, sid, shot_id, prompt,
                                 img_path, video_model, shot_duration,
-                                sound_param, video_shot_type
+                                sound_param, video_shot_type, video_ratio
                             )
                             futs[fut] = shot_id
                         for fut in as_completed(futs):
@@ -546,7 +548,7 @@ class VideoDirectorAgent(AgentInterface):
                     fut = executor.submit(
                         self._generate_one, sid, shot_id, prompt,
                         img_path, video_model, shot_duration,
-                        sound_param, video_shot_type,
+                        sound_param, video_shot_type, video_ratio
                     )
                     futs[fut] = shot_id
                 for fut in as_completed(futs):
