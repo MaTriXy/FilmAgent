@@ -24,7 +24,7 @@ def load_prompt(category: str, name: str, lang: str = 'zh') -> str:
         提示词内容字符串
 
     Example:
-        prompt = load_prompt('logline', 'generate', 'zh')
+        prompt = load_prompt('script', 'logline_generate', 'zh')
     """
     # 尝试加载语言版本
     file_path = os.path.join(PROMPTS_DIR, category, f"{name}_{lang}.txt")
@@ -32,7 +32,13 @@ def load_prompt(category: str, name: str, lang: str = 'zh') -> str:
         with open(file_path, 'r', encoding='utf-8') as f:
             return f.read().strip()
 
-    # 回退到中文版本
+    # 回退到带 _zh 的版本
+    file_path = os.path.join(PROMPTS_DIR, category, f"{name}_zh.txt")
+    if os.path.exists(file_path):
+        with open(file_path, 'r', encoding='utf-8') as f:
+            return f.read().strip()
+
+    # 回退到不带后缀的通用版本
     file_path = os.path.join(PROMPTS_DIR, category, f"{name}.txt")
     if os.path.exists(file_path):
         with open(file_path, 'r', encoding='utf-8') as f:
@@ -63,6 +69,12 @@ def load_prompt_with_fallback(category: str, name: str, lang: str = 'zh', fallba
         if os.path.exists(file_path):
             with open(file_path, 'r', encoding='utf-8') as f:
                 return f.read().strip()
+
+    # 最后尝试不带后缀的版本
+    file_path = os.path.join(PROMPTS_DIR, category, f"{name}.txt")
+    if os.path.exists(file_path):
+        with open(file_path, 'r', encoding='utf-8') as f:
+            return f.read().strip()
 
     raise FileNotFoundError(f"Prompt not found: {category}/{name}_{lang}.txt")
 

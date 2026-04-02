@@ -12,11 +12,11 @@ try:
     from tool.image_gpt import ImageGPT
     from tool.image_processor import ImageProcessor
 except ImportError:
-    from image_dashscope import DashScopeClient
-    from image_jimeng import JiMengClient
-    from image_seedream import SeedreamClient
-    from image_gpt import ImageGPT
-    from image_processor import ImageProcessor
+    from .image_dashscope import DashScopeClient
+    from .image_jimeng import JiMengClient
+    from .image_seedream import SeedreamClient
+    from .image_gpt import ImageGPT
+    from .image_processor import ImageProcessor
 
 class ImageClient:
     def __init__(self,

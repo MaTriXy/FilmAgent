@@ -391,6 +391,8 @@ class VideoDirectorAgent(AgentInterface):
         # 优先使用 input_data 中已有的 clips（包含用户修改的 description）
         existing_clips = input_data.get("clips", [])
         clip_descriptions = {c['id']: c['description'] for c in existing_clips if c.get('id') and c.get('description')}
+        clip_durations = {c['id']: c.get('duration', 10) for c in existing_clips if c.get('id')}
+        
         video_sound = input_data.get("video_sound", "on")
         video_shot_type = input_data.get("video_shot_type", "multi")
         sound_param = "" if video_sound == "off" else video_sound
@@ -406,7 +408,26 @@ class VideoDirectorAgent(AgentInterface):
 
         s2i = story_data.get('scene2image', {})
 
-        # 从 storyboard 获取时长数据（用户修改已同步到 clips 中）
+        # 1. 如果 input_data 传了 clips，则优先使用 input_data 中的结构
+        # 即使 scene2image 还没写回，也能根据 input_data 生成
+        if existing_clips:
+            logger.info(f"Using clips from input_data, count: {len(existing_clips)}")
+            # 补全 s2i 中可能缺失的项（例如新分镜）
+            for clip in existing_clips:
+                cid = clip['id']
+                if cid not in s2i:
+                    s2i[cid] = {
+                        "plot": clip.get('description', ''),
+                        "duration": clip.get('duration', 10),
+                    }
+                else:
+                    # 更新已有项的时长和描述（以 input_data 为准）
+                    if cid in clip_descriptions:
+                        s2i[cid]['plot'] = clip_descriptions[cid]
+                    if cid in clip_durations:
+                        s2i[cid]['duration'] = clip_durations[cid]
+
+        # 从 storyboard 获取时长数据（用于兜底更新）
         storyboard = story_data.get('storyboard', {})
         storyboard_shots_list = storyboard.get('shots', [])
         shot_duration_map = {s.get('shot_id'): s.get('duration', 10) for s in storyboard_shots_list if s.get('shot_id')}

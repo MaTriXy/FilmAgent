@@ -1,0 +1,54 @@
+你是一个专业的剧本分析师。请仔细阅读以下第{act_number}幕的分场大纲，从中提取并整理为标准JSON格式。
+
+分场大纲：
+{outline}
+
+请严格按照以下JSON结构输出（直接输出纯JSON，不要用```包裹，不要添加注释或任何其他文字）：
+
+
+
+{{
+  "characters": [
+    {{
+      "name": "角色全名",
+      "character_id": "char_加8位随机字母数字",
+      "description": "外貌描写: 含发型、体型、服装颜色和款式等视觉特征, 不要描述眼睛颜色, 面部不要有文字等特殊符号, 形象要正常(可以前卫时髦但不能恐怖灵异), 50-80字, 不要用比喻",
+      "personality": ["性格特征1", "性格特征2", "性格特征3"],
+      "motivation": "角色核心动机",
+      "arc_description": "角色成长弧线",
+      "role": "主角 或 配角 或 背景",
+      "age": "年龄",
+      "species": "人类 或 具体动物种类"
+    }}
+  ],
+  "settings": [
+    {{
+      "name": "场景名称(室内) 或 场景名称(室外)",
+      "setting_id": "set_加8位随机字母数字",
+      "description": "环境布局、色彩、光线、氛围等视觉细节, 80-120字, 不要包含人物或动物"
+    }}
+  ],
+  "scenes": [
+    {{
+      "scene_number": {scene_start},
+      "act": {act_number},
+      "location": "必须是settings中已定义的场景名称",
+      "characters": ["出场角色名(必须与characters中的name一致)"],
+      "plot": "该场景完整详细的剧情, 含对话、动作和表情描写, 必须完整表达分场内容, 无字数限制"
+    }}
+  ]
+}}
+
+
+
+重要规则：
+1. characters中的name必须与scenes中的角色名完全一致
+2. scenes中的location必须是settings中已定义的场景名称之一
+3. settings的name需标注(室内)或(室外)
+4. 所有scene的act字段必须为{act_number}
+5. scene_number从{scene_start}开始递增
+6. 角色的description要有足够视觉细节用于AI图像生成
+7. setting的description要有足够视觉细节用于AI背景图生成
+8. 不要生成群体角色(如"邻居们")，每个角色都是独立个体
+9. scene的plot字段必须完整表达该分场的全部内容
+10. 只输出纯JSON

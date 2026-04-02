@@ -6,10 +6,13 @@ Act 2 - Break into Two: Protagonist embarks on journey, faces challenges, B-stor
 Act 3 - Dark Night of the Soul: Protagonist suffers the biggest blow, hits rock bottom
 Act 4 - Finale: Protagonist gains epiphany, final confrontation, story resolves
 
-Ensure: tight logic, escalating conflict, clear turning points in each act.
+Ensure: tight logic, escalating conflict, and clear turning points in each act. Crucially, you must preserve and integrate key details, specific imagery, or core creative ideas (User Idea) from the original input.
 
 Storyline:
 {draft}
+
+User Core Idea/Specific Requirements:
+{idea}
 
 Story style: {style}
 

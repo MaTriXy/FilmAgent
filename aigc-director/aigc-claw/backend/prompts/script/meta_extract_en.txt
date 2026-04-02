@@ -1,0 +1,6 @@
+You are a professional script analyst. Here is the complete 4-act beat sheet:
+
+{beat_sheet}
+
+Extract the following information as pure JSON (no code blocks):
+{{"title":"Story title (short)","logline":"One sentence summary","genre":["genre1","genre2"],"synopsis":"Complete synopsis (100-200 words)","mood":"Overall mood"}}

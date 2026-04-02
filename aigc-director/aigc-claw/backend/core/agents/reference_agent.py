@@ -469,15 +469,23 @@ class ReferenceGeneratorAgent(AgentInterface):
             ark_base_url=settings.ARK_BASE_URL,
         )
 
-        # 读取数据
-        with open(result_file, 'r', encoding='utf-8') as f:
-            results = json.load(f)
-        story_data = results[str(sid)]
-
-        storyboard = story_data.get('storyboard', {})
-        shots = storyboard.get('shots', [])
+        # 优先从 input_data (artifacts) 中获取分镜数据，如果没有再读原始文件
+        shots = []
+        if input_data and isinstance(input_data, dict) and "shots" in input_data:
+            shots = input_data["shots"]
+            logger.info(f"[ReferenceAgent] 使用来自 input_data 的 {len(shots)} 个分镜数据")
+        
         if not shots:
-            raise Exception("未找到分镜数据(storyboard.shots)，请先完成阶段3")
+            # 备选：从结果文件读取
+            with open(result_file, 'r', encoding='utf-8') as f:
+                results = json.load(f)
+            story_data = results[str(sid)]
+            storyboard = story_data.get('storyboard', {})
+            shots = storyboard.get('shots', [])
+            logger.info(f"[ReferenceAgent] 使用来自结果文件的 {len(shots)} 个分镜数据")
+
+        if not shots:
+            raise Exception("未找到分镜数据，请先完成阶段3")
 
         script_json = story_data.get('script_json', {})
 

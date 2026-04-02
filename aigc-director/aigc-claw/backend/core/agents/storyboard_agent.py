@@ -22,23 +22,21 @@ ACT_NAMES = {1: "激励事件", 2: "进入新世界", 3: "灵魂黑夜", 4: "高
 
 
 def _get_shot_prompt(lang: str = 'zh') -> str:
-    """获取分镜提示词"""
-    return load_prompt('storyboard', 'shot', lang)
+    """获取分镜提取提示词"""
+    from prompts.loader import load_prompt_with_fallback
+    return load_prompt_with_fallback('storyboard', 'shot', lang, 'zh')
+
+
+def _get_expand_prompt(lang: str = 'zh') -> str:
+    """获取剧本扩写提示词"""
+    from prompts.loader import load_prompt_with_fallback
+    return load_prompt_with_fallback('storyboard', 'expand', lang, 'zh')
 
 
 def _get_continue_prompt(lang: str = 'zh') -> str:
     """获取续写分镜提示词"""
     from prompts.loader import load_prompt_with_fallback
     return load_prompt_with_fallback('storyboard', 'continue', lang, 'zh')
-
-
-def _get_prompt(name: str) -> str:
-    """Helper to get prompts"""
-    if name == 'SHOT_PROMPT_ZH':
-        return load_prompt('storyboard', 'shot', 'zh')
-    elif name == 'SHOT_PROMPT_EN':
-        return load_prompt('storyboard', 'shot', 'en')
-    raise AttributeError(f"module has no attribute {name!r}")
 
 
 class StoryboardAgent(AgentInterface):
@@ -284,7 +282,9 @@ class StoryboardAgent(AgentInterface):
         settings_map = {s["name"]: s for s in script_json.get("settings", [])}
 
         is_zh = any('\u4e00' <= c <= '\u9fff' for c in script_json.get("title", ""))
-        prompt_template = _get_prompt('SHOT_PROMPT_ZH') if is_zh else _get_prompt('SHOT_PROMPT_EN')
+        lang = 'zh' if is_zh else 'en'
+        shot_prompt_template = _get_shot_prompt(lang)
+        expand_prompt_template = _get_expand_prompt(lang)
 
         self._report_progress("分镜", "读取剧本数据...", 5)
 
@@ -292,8 +292,8 @@ class StoryboardAgent(AgentInterface):
         enable_concurrency = input_data.get("enable_concurrency", True)
         from config_model import get_max_concurrency
         # LLM 调用的并发数
-        concurrency = get_max_concurrency("llm", enable_concurrency)
-        logger.info(f"[StoryboardAgent] enable_concurrency={enable_concurrency}, concurrency={concurrency}")
+        concurrency = get_max_concurrency(llm_model, enable_concurrency)
+        logger.info(f"[StoryboardAgent] enable_concurrency={enable_concurrency}, concurrency={concurrency} for model={llm_model}")
 
         # 用于按场景顺序存储结果的字典
         shots_results: Dict[int, List[dict]] = {}
@@ -308,7 +308,7 @@ class StoryboardAgent(AgentInterface):
 
             location = scene.get("location", "")
             scene_chars = scene.get("characters", [])
-            plot = scene.get("plot", "")
+            original_plot = scene.get("plot", "")
 
             # 角色外貌描述
             char_descs = []
@@ -322,12 +322,33 @@ class StoryboardAgent(AgentInterface):
             setting_info = settings_map.get(location, {})
             setting_desc = setting_info.get("description", location)
 
-            prompt = prompt_template.format(
+            # 第一步：扩写剧本
+            logger.info(f"[StoryboardAgent] Expanding scene {sn}...")
+            expand_prompt = expand_prompt_template.format(
+                title=script_json.get("title", ""),
+                style=style,
+                location=location,
+                characters=", ".join(scene_chars),
+                plot=original_plot,
+                char_descriptions=char_desc_text,
+                setting_description=setting_desc,
+                script=json.dumps(script_json, ensure_ascii=False, indent=2)
+            )
+            
+            expanded_plot = original_plot
+            try:
+                expanded_plot = self._cancellable_query(llm, expand_prompt, model=llm_model, task_id=sid)
+                logger.info(f"[StoryboardAgent] Scene {sn} expanded.")
+            except Exception as e:
+                logger.error(f"Scene {sn} expansion failed: {e}")
+
+            # 第二步：生成分镜 (使用扩写后的内容)
+            prompt = shot_prompt_template.format(
                 style=style,
                 scene_number=sn,
                 location=location,
                 characters=", ".join(scene_chars),
-                plot=plot,
+                expanded_plot=expanded_plot,
                 char_descriptions=char_desc_text,
                 setting_description=setting_desc,
             )
@@ -353,8 +374,8 @@ class StoryboardAgent(AgentInterface):
                     "duration": 15,
                     "characters": scene_chars,
                     "location": location,
-                    "plot": plot,
-                    "visual_prompt": plot,
+                    "plot": original_plot,
+                    "visual_prompt": original_plot,
                 }]
 
             # 为每个分镜添加全局标识

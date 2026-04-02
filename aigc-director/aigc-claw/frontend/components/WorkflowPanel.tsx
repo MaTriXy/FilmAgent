@@ -959,14 +959,18 @@ export default function WorkflowPanel() {
         } catch { /* ignore */ }
       }
 
-      // 如果 current_stage 不在 completedStages 中，也需要显示（可能是 stage_completed 或 running 状态）
+      // 如果 current_stage 不在 completedStages 中，也需要显示（可能是 stage_completed、running 或 error 状态）
       if (currentStage && !completedStages.includes(currentStage)) {
+        const isError = status.status === 'error';
+        const isWaiting = status.status === 'waiting_in_stage';
+        const isCompleted = status.status === 'stage_completed';
+        
         newStates[currentStage] = {
-          status: status.status === 'waiting_in_stage' ? 'waiting' : (status.status === 'stage_completed' ? 'completed' : 'running'),
+          status: isError ? 'error' : (isWaiting ? 'waiting' : (isCompleted ? 'completed' : 'running')),
           progress: 100,
-          progressMessage: status.status === 'waiting_in_stage' ? '等待确认' : (status.status === 'stage_completed' ? '已完成' : '进行中'),
+          progressMessage: isError ? '执行失败' : (isWaiting ? '等待确认' : (isCompleted ? '已完成' : '进行中')),
           artifact: null,
-          error: null,
+          error: isError ? (status.error || '执行出错') : null,
         };
         try {
           const artResult = await getArtifact(sid, currentStage);

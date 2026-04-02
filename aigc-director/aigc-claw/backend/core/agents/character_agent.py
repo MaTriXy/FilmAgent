@@ -411,9 +411,39 @@ class CharacterDesignerAgent(AgentInterface):
             select_sets = intervention.get("select_settings", {})         # {asset_id: path}
             update_descriptions = intervention.get("update_descriptions", {})  # {characters: {}, settings: {}}
 
-            script_data = self._read_script_data(sid)
-            chars_desc = script_data["characters"]
-            sets_desc = script_data["settings"]
+            # 优先从 input_data (artifacts) 中恢复当前状态，确保之前在界面上做的修改能保留
+            chars_desc = {}
+            sets_desc = {}
+            
+            # input_data.get("characters") 在正常流程中是 list，需转换为 dict 以便后续 .items() 使用
+            input_chars = input_data.get("characters", [])
+            if isinstance(input_chars, list):
+                for c in input_chars:
+                    if isinstance(c, dict) and "id" in c:
+                        chars_desc[c["id"]] = {
+                            "name": c.get("name", ""),
+                            "description": c.get("description", ""),
+                            "species": c.get("species", ""),
+                        }
+            elif isinstance(input_chars, dict):
+                chars_desc = input_chars
+
+            input_sets = input_data.get("settings", [])
+            if isinstance(input_sets, list):
+                for s in input_sets:
+                    if isinstance(s, dict) and "id" in s:
+                        sets_desc[s["id"]] = {
+                            "name": s.get("name", ""),
+                            "description": s.get("description", ""),
+                        }
+            elif isinstance(input_sets, dict):
+                sets_desc = input_sets
+
+            # 如果 input_data 为空（比如后端重启后的第一次介入），再读原始文件
+            if not chars_desc and not sets_desc:
+                script_data = self._read_script_data(sid)
+                chars_desc = script_data["characters"]
+                sets_desc = script_data["settings"]
 
             # 处理描述更新
             if update_descriptions:
@@ -512,9 +542,18 @@ class CharacterDesignerAgent(AgentInterface):
         # ═══════════ 正常流程: 全量首次生成 ═══════════
         self._report_progress("角色设计", "读取剧本数据...", 5)
 
-        script_data = self._read_script_data(sid)
-        chars_desc = script_data["characters"]
-        sets_desc = script_data["settings"]
+        # 优先从 input_data 获取素材定义，如果没有再从原始剧本文件读取
+        chars_desc, sets_desc = {}, {}
+        if input_data and isinstance(input_data, dict):
+            if "characters" in input_data:
+                chars_desc = input_data["characters"]
+            if "settings" in input_data:
+                sets_desc = input_data["settings"]
+        
+        if not chars_desc and not sets_desc:
+            script_data = self._read_script_data(sid)
+            chars_desc = script_data["characters"]
+            sets_desc = script_data["settings"]
 
         if not chars_desc and not sets_desc:
             raise Exception("未能从剧本中读取到角色或场景描述数据")

@@ -1,0 +1,21 @@
+You are a script review expert. Review the following settings and characters lists and identify entries that should be merged.
+
+Merge rules:
+- Settings merge: If two settings are the same physical location (just different camera angles), merge them into one. E.g., 'Train interior', 'Train aisle', 'Train panorama' are all the same car.
+  Different physical spaces should NOT be merged.
+- Character merge: If the same character appears with slightly different descriptions, merge them.
+- Keep the most detailed description after merging.
+
+Current settings:
+{settings_json}
+
+Current characters:
+{characters_json}
+
+Output ONLY valid JSON (no code blocks):
+{{
+  "setting_merges": {{"merged_setting_name": "target_setting_name", ...}},
+  "character_merges": {{"merged_char_name": "target_char_name", ...}}
+}}
+
+If nothing to merge, return empty objects {{}}. Output ONLY the JSON.

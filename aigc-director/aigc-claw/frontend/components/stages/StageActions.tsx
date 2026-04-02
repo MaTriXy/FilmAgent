@@ -50,15 +50,12 @@ export default function StageActions({
   // 重新生成/继续生成按钮：在 waiting / completed / error 状态下显示
   const showRegen = onRegenerate && (status === 'waiting' || status === 'completed' || status === 'error');
 
-  // 判断按钮是否可用
-  let canRegenerate = isRunning;
-  if (isContinueStage) {
-    // 阶段2、4、5：如果没有待生成的项，禁止点击
-    canRegenerate = canRegenerate || !hasPendingItems;
-  } else if (isRegenStage) {
-    // 阶段1、3：如果后续阶段已开始，禁止点击
-    canRegenerate = canRegenerate || hasNextStageStarted;
-  }
+  // 判断按钮是否禁用
+  const isButtonDisabled = isRunning || (
+    status !== 'error' && (
+      isContinueStage ? !hasPendingItems : (isRegenStage ? hasNextStageStarted : false)
+    )
+  );
 
   // 其余按钮在 waiting、running、completed 状态显示
   const showActions = status === 'waiting' || status === 'running' || status === 'completed';
@@ -87,9 +84,9 @@ export default function StageActions({
         {showRegen && (
           <button
             onClick={onRegenerate}
-            disabled={canRegenerate}
+            disabled={isButtonDisabled}
             className="flex items-center gap-2 px-4 py-2 bg-white border border-orange-300 text-orange-600 rounded-lg text-sm font-medium hover:bg-orange-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-            title={isContinueStage && !hasPendingItems ? '所有项已生成完毕' : (isRegenStage && hasNextStageStarted ? '后续阶段已开始，无法重新生成' : '')}
+            title={isButtonDisabled ? (status === 'error' ? '重新尝试生成' : (isContinueStage && !hasPendingItems ? '所有项已生成完毕' : (isRegenStage && hasNextStageStarted ? '后续阶段已开始，无法重新生成' : ''))) : ''}
           >
             {isContinueStage ? <Play className="w-4 h-4" /> : <RefreshCw className="w-4 h-4" />}
             {isContinueStage ? '继续生成' : '重新生成'}

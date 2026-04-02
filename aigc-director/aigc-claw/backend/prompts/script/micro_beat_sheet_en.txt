@@ -10,6 +10,9 @@ Requirements:
 Storyline:
 {draft}
 
+User Core Idea/Specific Requirements (Must preserve and integrate):
+{idea}
+
 Story style: {style}
 
 Output a compact plot summary directly, describing scene progression, core actions and emotional shifts.
