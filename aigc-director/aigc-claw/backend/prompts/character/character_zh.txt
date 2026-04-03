@@ -1,11 +1,9 @@
-Character reference sheet, {style} style, white background,
-4 views of the same character arranged in a single row from left to right:
-1) front-facing close-up portrait (head and upper body),
-2) front-facing full body ({pose_note}),
-3) side-view full body ({pose_note}),
-4) back-view full body ({pose_note}).
-All views show the SAME character with consistent appearance and outfit.
-The close-up shows head-to-waist; the other three show complete body from head to feet.
-Pure image only, absolutely NO text, NO labels, NO annotations, NO captions, NO watermarks on the image.
-High quality, masterpiece, clean line art.
-Character: {name} — {desc}
+角色设计参考图，{style} 风格，纯白背景。高画质，杰作，高画质。
+角色描述: {name} — {desc}
+在同一排从左至右排列同一角色的 4 个视角：
+1) 正面肖像（胸部以上），
+2) 正面全身照，
+3) 侧面全身照，
+4) 背面全身照。
+所有视角必须展示同一个角色，外貌、发型、肤色和服装保持高度一致。
+画面纯净，绝对禁止出现任何文字、标签、标注、注释、说明或水印。

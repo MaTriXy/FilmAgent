@@ -16,7 +16,7 @@ from typing import Any, Optional, Dict, List
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
 from .base_agent import AgentInterface
-from prompts.loader import load_prompt, load_style_prompt
+from prompts.loader import load_prompt
 
 logger = logging.getLogger(__name__)
 
@@ -31,19 +31,19 @@ class CharacterDesignerAgent(AgentInterface):
 
     @staticmethod
     def _char_prompt(name: str, desc: str, style: str, species: str = "") -> str:
-        """角色4视图提示词 - 从风格提示词文件加载"""
-        # 加载风格提示词模板
-        template = load_style_prompt('character', style)
+        """角色4视图提示词 - 直接加载 character_zh 模板"""
+        # 加载基础角色提示词模板
+        template = load_prompt('character', 'character', 'zh')
         # 替换角色信息
-        return template.format(name=name, desc=desc)
+        return template.format(name=name, desc=desc, style=style)
 
     @staticmethod
     def _setting_prompt(name: str, desc: str, style: str) -> str:
-        """场景全景图提示词 - 从风格提示词文件加载"""
-        # 加载风格提示词模板
-        template = load_style_prompt('setting', style)
+        """场景全景图提示词 - 直接加载 setting_zh 模板"""
+        # 加载基础场景提示词模板
+        template = load_prompt('setting', 'setting', 'zh')
         # 替换场景信息
-        return template.format(name=name, desc=desc)
+        return template.format(name=name, desc=desc, style=style)
 
     # ─── 文件管理（基于唯一ID） ───
 
@@ -138,7 +138,7 @@ class CharacterDesignerAgent(AgentInterface):
             base_prompt = self._setting_prompt(name, desc, style)
 
         video_ratio = "16:9"
-        resolution = "1080P"
+        resolution = "4K"
         current_prompt = base_prompt
 
         for iteration in range(max_iterations):
