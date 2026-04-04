@@ -81,20 +81,20 @@ function VideoGallery({
                   : 'ring-1 ring-gray-200 hover:ring-gray-300 hover:shadow-md'
               }`}
             >
-              <div className="relative bg-black">
+              <div className="relative bg-black flex items-center justify-center h-32 aspect-video overflow-hidden">
                 <video
                   src={assetUrl(path)}
                   controls={isSelected}
                   preload="metadata"
-                  className="h-32 aspect-video object-cover"
+                  className="h-full w-full object-contain"
                 />
                 {!isSelected && (
-                  <div className="absolute inset-0 flex items-center justify-center bg-black/10">
-                    <Play className="w-6 h-6 text-white/70" />
+                  <div className="absolute inset-0 flex items-center justify-center bg-black/20 group-hover:bg-black/10 transition-colors">
+                    <Play className="w-8 h-8 text-white filter drop-shadow-lg" />
                   </div>
                 )}
               </div>
-              <div className={`text-center text-[10px] py-0.5 ${
+              <div className={`text-center text-[10px] py-1 ${
                 isSelected ? 'bg-rose-500 text-white font-medium' : 'bg-gray-50 text-gray-400'
               }`}>
                 v{i + 1}
@@ -103,7 +103,7 @@ function VideoGallery({
           );
         })}
         {showPlaceholder && (
-          <div className="flex-shrink-0 flex items-center justify-center h-32 aspect-video bg-gray-50 rounded-lg border border-dashed border-gray-200">
+          <div className="flex-shrink-0 flex items-center justify-center h-32 aspect-video bg-gray-50 rounded-lg border border-dashed border-gray-200 px-4">
             <div className="flex items-center gap-2 text-gray-400 text-xs">
               <Loader className="w-4 h-4 animate-spin" />
               <span>生成中...</span>
@@ -232,7 +232,7 @@ function ClipRow({
       <div className="flex-1 min-w-0 p-3 flex items-center">
         {isPending && !clip.versions.length ? (
           <div className="flex items-center justify-center h-32 aspect-video bg-gray-50 rounded-lg border border-dashed border-gray-200">
-            <div className="flex items-center gap-2 text-gray-400 text-xs">
+            <div className="flex items-center gap-2 text-gray-400 text-xs px-4">
               <Loader className="w-4 h-4 animate-spin" />
               <span>正在生成视频...</span>
             </div>
@@ -242,7 +242,7 @@ function ClipRow({
             className="flex items-center justify-center h-32 aspect-video bg-red-50/50 rounded-lg border border-dashed border-red-200 cursor-pointer hover:bg-red-100/50 transition-colors"
             onClick={onRegenerate}
           >
-            <div className="flex flex-col items-center gap-1 text-red-400 text-xs">
+            <div className="flex flex-col items-center gap-1 text-red-400 text-xs px-4">
               <AlertCircle className="w-4 h-4" />
               <span>生成失败，点击重试</span>
             </div>

@@ -99,35 +99,35 @@ class ReferenceGeneratorAgent(AgentInterface):
                     am[key][base_id] = os.path.join(d, fn)
         return am
 
-    def _collect_refs(self, shot: dict, asset_map: dict,
+    def _collect_refs(self, segment: dict, asset_map: dict,
                       char_id_map: dict, setting_id_map: dict) -> List[str]:
-        """为一个分镜收集参考原图路径（角色 + 场景素材）"""
+        """为一个片段(Segment)收集参考原图路径（角色 + 场景素材）"""
         refs = []
-        for cn in shot.get('characters', []):
+        for cn in segment.get('characters', []):
             cid = char_id_map.get(cn)
             if cid and cid in asset_map['characters']:
                 refs.append(os.path.abspath(asset_map['characters'][cid]))
-                logger.info(f"[{shot.get('shot_id', '')}] 添加角色参考图: {cn} -> {cid}")
-        loc = shot.get('location', '')
+                logger.info(f"[{segment.get('segment_id', '')}] 添加角色参考图: {cn} -> {cid}")
+        loc = segment.get('location', '')
         set_id = setting_id_map.get(loc)
         if set_id and set_id in asset_map['settings']:
             refs.append(os.path.abspath(asset_map['settings'][set_id]))
-            logger.info(f"[{shot.get('shot_id', '')}] 添加场景参考图: {loc} -> {set_id}")
+            logger.info(f"[{segment.get('segment_id', '')}] 添加场景参考图: {loc} -> {set_id}")
         else:
-            logger.warning(f"[{shot.get('shot_id', '')}] 未找到场景参考图: location={loc}, set_id={set_id}, available_settings={list(asset_map['settings'].keys())}")
-        logger.info(f"[{shot.get('shot_id', '')}] 共收集 {len(refs)} 张参考图")
+            logger.warning(f"[{segment.get('segment_id', '')}] 未找到场景参考图: location={loc}, set_id={set_id}, available_settings={list(asset_map['settings'].keys())}")
+        logger.info(f"[{segment.get('segment_id', '')}] 共收集 {len(refs)} 张参考图")
         return refs[:10]
 
-    def _get_descriptions(self, shot: dict, char_id_map: dict, setting_id_map: dict,
+    def _get_descriptions(self, segment: dict, char_id_map: dict, setting_id_map: dict,
                           script_json: dict) -> tuple:
-        """获取分镜中涉及的角色和场景描述
+        """获取片段中涉及的角色和场景描述
 
         Returns:
             (character_description, setting_description)
         """
         # 角色描述
         char_descs = []
-        for cn in shot.get('characters', []):
+        for cn in segment.get('characters', []):
             cid = char_id_map.get(cn, '')
             if cid:
                 for c in script_json.get('characters', []):
@@ -141,7 +141,7 @@ class ReferenceGeneratorAgent(AgentInterface):
                         break
 
         # 场景描述
-        loc = shot.get('location', '')
+        loc = segment.get('location', '')
         set_id = setting_id_map.get(loc)
         setting_desc = ""
         if set_id:
@@ -156,17 +156,21 @@ class ReferenceGeneratorAgent(AgentInterface):
 
     # ─── 预览构建 ───
 
-    def _build_preview(self, sid: str, shots: list) -> list:
-        """构建分镜预览列表（含当前状态）"""
+    def _build_preview(self, sid: str, segments: list) -> list:
+        """构建片段预览列表（含当前状态）"""
         preview = []
-        for idx, shot in enumerate(shots, 1):
-            shot_id = shot['shot_id']
-            versions = self._list_versions(sid, shot_id)
+        for idx, seg in enumerate(segments, 1):
+            segment_id = seg.get('segment_id', f'seg_unk_{idx}')
+            versions = self._list_versions(sid, segment_id)
+            
+            # 将该段下所有镜头组合为简要说明
+            shots_summary = " ".join([s.get('content', '') for s in seg.get('shots', [])])
+            
             preview.append({
-                "id": shot_id,
-                "name": f"场景{shot['scene_number']}-镜头{shot['shot_number']}",
+                "id": segment_id,
+                "name": f"第{seg.get('episode_number', 1)}集-片段{seg.get('segment_number', idx)}",
                 "index": idx,
-                "description": shot.get('visual_prompt', ''),
+                "description": shots_summary[:50] + '...' if len(shots_summary) > 50 else shots_summary,
                 "selected": versions[-1] if versions else "",
                 "versions": versions,
                 "status": "done" if versions else "pending",
@@ -175,31 +179,33 @@ class ReferenceGeneratorAgent(AgentInterface):
 
     # ─── 单张生成 ───
 
-    def _generate_one(self, img_client, sid: str, shot: dict,
+    def _generate_one(self, img_client, sid: str, segment: dict,
                       first_frame_prompt: str, refs: List[str],
                       style: str, it2i_model: str, t2i_model: str,
                       video_ratio: str = "16:9", resolution: str = "1080P", vlm_model: str = "qwen3.5-plus",
                       character_description: str = "", setting_description: str = "",
                       max_versions: int = 3) -> tuple:
-        """生成单个分镜参考图，返回 (shot_id, path_or_None, eval_result)
+        """生成单个片段参考图，返回 (segment_id, path_or_None, eval_result)
 
         最多生成 max_versions 个版本，如果所有版本都没有达到8分，
         使用 VLM 选择最好的一张作为最终参考图。
         """
-        shot_id = shot.get('shot_id', '')
-        plot = shot.get('plot', '')
-        visual_prompt = shot.get('visual_prompt', '')
+        segment_id = segment.get('segment_id', '')
+        
+        # 拼接剧情描述（评估时用）
+        plot = " ".join([s.get('content', '') for s in segment.get('shots', [])])
+        visual_prompt = first_frame_prompt
 
         # 取消时直接跳过，不抛异常，以保留已生成的部分结果
         if self.cancellation_check and self.cancellation_check():
-            logger.info(f"ReferenceGeneratorAgent: {shot_id} 跳过（用户取消）")
-            return shot_id, None, None
+            logger.info(f"ReferenceGeneratorAgent: {segment_id} 跳过（用户取消）")
+            return segment_id, None, None
 
         model = it2i_model if refs else t2i_model
-        logger.info(f"[{shot_id}] 使用模型: {model}, 参考图数量: {len(refs) if refs else 0}")
+        logger.info(f"[{segment_id}] 使用模型: {model}, 参考图数量: {len(refs) if refs else 0}")
         if refs:
             for i, r in enumerate(refs):
-                logger.info(f"[{shot_id}] 参考图[{i}]: {r}")
+                logger.info(f"[{segment_id}] 参考图[{i}]: {r}")
 
         # 收集所有生成的版本
         all_versions = []
@@ -214,7 +220,7 @@ class ReferenceGeneratorAgent(AgentInterface):
                 f"{first_frame_prompt}"
             )
 
-            save_path = self._next_version_path(sid, shot_id)
+            save_path = self._next_version_path(sid, segment_id)
             save_dir = os.path.dirname(save_path)
 
             try:
@@ -237,7 +243,7 @@ class ReferenceGeneratorAgent(AgentInterface):
                     os.rename(gen, save_path)
 
                 # VLM 评估
-                eval_result = self._evaluate_with_vlm(save_path, shot,
+                eval_result = self._evaluate_with_vlm(save_path, segment, plot, visual_prompt,
                                                       character_description=character_description,
                                                       setting_description=setting_description,
                                                       vlm_model=vlm_model)
@@ -245,7 +251,7 @@ class ReferenceGeneratorAgent(AgentInterface):
                 score = eval_result.get('score', 0)
                 is_acceptable = score >= 8
 
-                logger.info(f"[{shot_id}] 版本{version + 1}: 评分 {score}/10, {'✓通过' if is_acceptable else '✗不通过'}")
+                logger.info(f"[{segment_id}] 版本{version + 1}: 评分 {score}/10, {'✓通过' if is_acceptable else '✗不通过'}")
 
                 # 记录版本信息
                 all_versions.append(save_path)
@@ -253,32 +259,32 @@ class ReferenceGeneratorAgent(AgentInterface):
 
                 # 如果达到8分，立即返回
                 if is_acceptable:
-                    return shot_id, save_path, eval_result
+                    return segment_id, save_path, eval_result
 
                 # 报告进度
                 if version < max_versions - 1:
-                    self._report_progress("参考图", f"重新生成中 ({version + 2}/{max_versions}): {shot_id}", 0)
+                    self._report_progress("参考图", f"重新生成中 ({version + 2}/{max_versions}): {segment_id}", 0)
 
             except Exception as e:
-                logger.error(f"Shot {shot_id} image generation failed: {e}")
+                logger.error(f"Segment {segment_id} image generation failed: {e}")
 
         # 所有版本都没有达到8分，使用 VLM 选择最好的
         if all_versions:
-            logger.warning(f"[{shot_id}] 所有版本都未达到8分，使用VLM选择最佳...")
+            logger.warning(f"[{segment_id}] 所有版本都未达到8分，使用VLM选择最佳...")
             best_path, best_eval = self._select_best_with_vlm(
-                all_versions, shot,
+                all_versions, segment, plot, visual_prompt,
                 character_description=character_description,
                 setting_description=setting_description,
                 vlm_model=vlm_model
             )
             if best_path:
-                return shot_id, best_path, best_eval
+                return segment_id, best_path, best_eval
 
         # 如果没有任何生成成功
-        logger.warning(f"[{shot_id}] 没有成功生成任何图片")
-        return shot_id, None, None
+        logger.warning(f"[{segment_id}] 没有成功生成任何图片")
+        return segment_id, None, None
 
-    def _select_best_with_vlm(self, image_paths: List[str], shot: dict,
+    def _select_best_with_vlm(self, image_paths: List[str], segment: dict, plot: str, visual_prompt: str,
                               character_description: str = "", setting_description: str = "",
                               vlm_model: str = "qwen3.5-plus") -> tuple:
         """使用 VLM 从多个版本中选择最好的一张"""
@@ -287,9 +293,7 @@ class ReferenceGeneratorAgent(AgentInterface):
         if not image_paths:
             return None, None
 
-        shot_id = shot.get('shot_id', '')
-        plot = shot.get('plot', '')
-        visual_prompt = shot.get('visual_prompt', '')
+        segment_id = segment.get('segment_id', '')
 
         # 加载评估提示词
         select_prompt = load_prompt('reference', 'eval_select_best', 'zh').format(
@@ -305,7 +309,7 @@ class ReferenceGeneratorAgent(AgentInterface):
         try:
             vlm = VLM()
             result = vlm.query(select_prompt, image_paths=image_paths, model=vlm_model)
-            logger.info(f"[{shot_id}] VLM选择结果: {result}")
+            logger.info(f"[{segment_id}] VLM选择结果: {result}")
 
             # 解析 JSON 结果
             import re
@@ -315,7 +319,7 @@ class ReferenceGeneratorAgent(AgentInterface):
                 selected_idx = selected.get('selected_index', 0)
                 if 0 <= selected_idx < len(image_paths):
                     best_path = image_paths[selected_idx]
-                    logger.info(f"[{shot_id}] VLM选择第{selected_idx + 1}张作为最佳图片")
+                    logger.info(f"[{segment_id}] VLM选择第{selected_idx + 1}张作为最佳图片")
                     # 构建评估结果
                     best_eval = {
                         "score": selected.get('score', 5),
@@ -327,12 +331,12 @@ class ReferenceGeneratorAgent(AgentInterface):
                     return best_path, best_eval
 
         except Exception as e:
-            logger.error(f"[{shot_id}] VLM选择最佳图片失败: {e}")
+            logger.error(f"[{segment_id}] VLM选择最佳图片失败: {e}")
 
         # 如果失败，返回第一个版本
         return image_paths[0], {"score": 5, "issues": [], "selected_by_vlm": False}
 
-    def _evaluate_with_vlm(self, image_path: str, shot: dict,
+    def _evaluate_with_vlm(self, image_path: str, segment: dict, plot: str, visual_prompt: str,
                           character_description: str = "", setting_description: str = "",
                           vlm_model: str = "qwen3.5-plus") -> dict:
         """使用 VLM 评估首帧参考图"""
@@ -341,8 +345,8 @@ class ReferenceGeneratorAgent(AgentInterface):
             vlm = VLM()
 
             eval_prompt = load_prompt('reference', 'eval_first_frame', 'zh').format(
-                plot=shot.get('plot', ''),
-                visual_prompt=shot.get('visual_prompt', ''),
+                plot=plot,
+                visual_prompt=visual_prompt,
                 character_description=character_description,
                 setting_description=setting_description
             )
@@ -378,19 +382,22 @@ class ReferenceGeneratorAgent(AgentInterface):
 
     # ─── 构建最终 payload ───
 
-    def _build_payload(self, sid: str, shots: list) -> dict:
+    def _build_payload(self, sid: str, segments: list) -> dict:
         """构建最终 payload"""
         scenes = []
-        for idx, shot in enumerate(shots, 1):
-            shot_id = shot['shot_id']
-            versions = self._list_versions(sid, shot_id)
+        for idx, seg in enumerate(segments, 1):
+            segment_id = seg.get('segment_id', f'seg_unk_{idx}')
+            versions = self._list_versions(sid, segment_id)
+            
+            shots_summary = " ".join([s.get('content', '') for s in seg.get('shots', [])])
+
             # status: 有图片=done, 无图片=pending(待生成)
             status = "done" if versions else "pending"
             scenes.append({
-                "id": shot_id,
-                "name": f"场景{shot['scene_number']}-镜头{shot['shot_number']}",
+                "id": segment_id,
+                "name": f"第{seg.get('episode_number', 1)}集-片段{seg.get('segment_number', idx)}",
                 "index": idx,
-                "description": shot.get('visual_prompt', ''),
+                "description": shots_summary[:50] + '...' if len(shots_summary) > 50 else shots_summary,
                 "selected": versions[-1] if versions else "",
                 "versions": versions,
                 "status": status,
@@ -403,15 +410,15 @@ class ReferenceGeneratorAgent(AgentInterface):
             "stage_completed": True,
         }
 
-    def _update_scene2image(self, sid: str, shots: list, result_file: str,
+    def _update_scene2image(self, sid: str, segments: list, result_file: str,
                             first_frame_prompts: dict, selected_images: dict = None) -> None:
         """写回 scene2image 到结果文件
-        scene2image[shot_id] = {
+        scene2image[segment_id] = {
             local_path: 当前最新版本图片路径,
             prompt: 首帧图像提示词(阶段4生成),
-            plot: 原始分镜剧情描述(阶段3，供阶段5视频使用),
-            video_prompt: 原始分镜视觉描述(阶段3),
-            duration: 分镜时长,
+            plot: 原始分段剧情描述(阶段3拼接，供阶段5视频使用),
+            video_prompt: 原始分段视觉描述提示词(等同首帧提示词),
+            duration: 分段总时长,
         }
         """
         if selected_images is None:
@@ -420,23 +427,27 @@ class ReferenceGeneratorAgent(AgentInterface):
         with open(result_file, 'r', encoding='utf-8') as f:
             res = json.load(f)
         scene_images = res.get(str(sid), {}).get('scene2image', {})
-        for shot in shots:
-            shot_id = shot['shot_id']
+        for seg in segments:
+            segment_id = seg.get('segment_id', '')
+            if not segment_id: continue
+
             # 优先使用实时传入的选定路径，否则寻找磁盘已有版本
-            selected = selected_images.get(shot_id)
+            selected = selected_images.get(segment_id)
             if not selected:
-                versions = self._list_versions(sid, shot_id)
+                versions = self._list_versions(sid, segment_id)
                 if versions:
                     selected = versions[-1]
             
             if selected:
-                scene_images[shot_id] = {
+                plot = " ".join([s.get('content', '') for s in seg.get('shots', [])])
+                scene_images[segment_id] = {
                     "local_path": selected,
-                    "prompt": first_frame_prompts.get(shot_id, shot.get('visual_prompt', '')),
-                    "plot": shot.get('plot', ''),
-                    "video_prompt": shot.get('visual_prompt', ''),
-                    "duration": shot.get('duration', 10),
+                    "prompt": first_frame_prompts.get(segment_id, plot[:50]),
+                    "plot": plot,
+                    "video_prompt": first_frame_prompts.get(segment_id, plot[:50]),
+                    "duration": seg.get('total_duration', 10),
                 }
+        res[str(sid)] = res.get(str(sid), {})
         res[str(sid)]['scene2image'] = scene_images
         with open(result_file, 'w', encoding='utf-8') as f:
             json.dump(res, f, indent=4, ensure_ascii=False)
@@ -455,7 +466,7 @@ class ReferenceGeneratorAgent(AgentInterface):
         
         style = input_data.get("style", "anime")
         video_ratio = input_data.get("video_ratio", "16:9")
-        resolution = input_data.get("resolution", "1080P")
+        resolution = input_data.get("resolution", "4K")
         llm_model = input_data.get("llm_model", "") or settings.LLM_MODEL
         t2i = input_data.get("image_t2i_model", "") or settings.IMAGE_T2I_MODEL
         it2i = input_data.get("image_it2i_model", "") or settings.IMAGE_IT2I_MODEL
@@ -470,7 +481,15 @@ class ReferenceGeneratorAgent(AgentInterface):
         concurrency = max(max_t2i, max_it2i)
         logger.info(f"[ReferenceAgent] 使用并发数={concurrency}")
 
-        result_file = os.path.join(settings.RESULT_DIR, 'script', f'script_{sid}.json')
+        # 读取会话数据
+        session_path = os.path.join('code/data/sessions', f'{sid}.json')
+        if not os.path.exists(session_path):
+            raise Exception(f"Session file not found: {session_path}")
+            
+        with open(session_path, 'r', encoding='utf-8') as f:
+            session_data = json.load(f)
+            
+        artifacts = session_data.get("artifacts", {})
 
         img_client = ImageClient(
             dashscope_api_key=settings.DASHSCOPE_API_KEY,
@@ -483,25 +502,22 @@ class ReferenceGeneratorAgent(AgentInterface):
             ark_base_url=settings.ARK_BASE_URL,
         )
 
-        # 优先从 input_data (artifacts) 中获取分镜数据，如果没有再读原始文件
-        shots = []
-        if input_data and isinstance(input_data, dict) and "shots" in input_data:
-            shots = input_data["shots"]
-            logger.info(f"[ReferenceAgent] 使用来自 input_data 的 {len(shots)} 个分镜数据")
-        
-        if not shots:
-            # 备选：从结果文件读取
-            with open(result_file, 'r', encoding='utf-8') as f:
-                results = json.load(f)
-            story_data = results[str(sid)]
-            storyboard = story_data.get('storyboard', {})
-            shots = storyboard.get('shots', [])
-            logger.info(f"[ReferenceAgent] 使用来自结果文件的 {len(shots)} 个分镜数据")
+        episodes = artifacts.get('storyboard', {}).get('episodes', [])
+        if not episodes:
+            raise Exception("未找到分镜剧集数据，请先完成阶段3")
 
-        if not shots:
-            raise Exception("未找到分镜数据，请先完成阶段3")
+        segments = []
+        for ep in episodes:
+            for seg in ep.get("segments", []):
+                segments.append(seg)
+                
+        if not segments:
+            raise Exception("未找到分镜片段数据，请先完成阶段3")
 
-        script_json = story_data.get('script_json', {})
+        logger.info(f"[ReferenceAgent] 解析到 {len(segments)} 个拍摄片段")
+
+        script_json = artifacts.get('script_generation', {})
+        result_file = os.path.join('code/data/sessions', f'{sid}.json')
 
         # 判断中英文
         is_zh = any('\u4e00' <= c <= '\u9fff' for c in script_json.get("title", ""))
@@ -517,7 +533,7 @@ class ReferenceGeneratorAgent(AgentInterface):
 
         asset_map = self._build_asset_map(sid)
 
-        # ═══ 介入：重新生成指定分镜 ═══
+        # ═══ 介入：重新生成指定分段 ═══
         if intervention:
             regen_scenes = intervention.get("regenerate_scenes", [])
 
@@ -525,11 +541,16 @@ class ReferenceGeneratorAgent(AgentInterface):
                 self._report_progress("参考图", "重新生成中...", 2)
 
                 # 重新从 session JSON 文件读取最新的 storyboard 数据
-                with open(result_file, 'r', encoding='utf-8') as f:
+                with open(session_path, 'r', encoding='utf-8') as f:
                     fresh_data = json.load(f)
-                fresh_storyboard = fresh_data.get(str(sid), {}).get('storyboard', {})
-                fresh_shots = fresh_storyboard.get('shots', [])
-                fresh_shot_map = {s['shot_id']: s for s in fresh_shots}
+                fresh_artifacts = fresh_data.get('artifacts', {})
+                fresh_episodes = fresh_artifacts.get('storyboard', {}).get('episodes', [])
+                
+                fresh_segments = []
+                for ep in fresh_episodes:
+                    fresh_segments.extend(ep.get("segments", []))
+                    
+                fresh_segment_map = {s['segment_id']: s for s in fresh_segments}
 
                 llm = LLM()
 
@@ -539,64 +560,82 @@ class ReferenceGeneratorAgent(AgentInterface):
                     total = len(regen_scenes)
                     done = 0
                     nonlocal selected_images
-                    # 每分镜5个步骤：准备(1)、生成(3)、完成(1)
-                    steps_per_shot = 5
-                    total_steps = total * steps_per_shot
+                    # 每片段5个步骤：准备(1)、生成(3)、完成(1)
+                    steps_per_segment = 5
+                    total_steps = total * steps_per_segment
 
                     def calc_pct_regen(step: int) -> int:
                         return min(2 + int(98 * step / total_steps), 100)
 
-                    # 从最新读取的 storyboard JSON 中获取 visual_prompt
-                    prompt_map = {}  # shot_id → first_frame_prompt
-                    for i, shot_id in enumerate(regen_scenes):
-                        shot = fresh_shot_map.get(shot_id, {})
-                        ff_prompt = shot.get('visual_prompt', '')
-                        prompt_map[shot_id] = ff_prompt
-                        logger.info(f"[{shot_id}] first-frame prompt (from JSON): {ff_prompt[:80]}...")
-                        self._report_progress("参考图", f"准备提示词: {shot_id}", calc_pct_regen(i * steps_per_shot + 1))
+                    # 根据最新的 Segment 生成对应的 visual_prompt
+                    prompt_map = {}  # segment_id → first_frame_prompt
+                    for i, segment_id in enumerate(regen_scenes):
+                        seg = fresh_segment_map.get(segment_id, {})
+                        
+                        plot = " ".join([s.get('content', '') for s in seg.get('shots', [])])
+                        char_desc, set_desc = self._get_descriptions(seg, char_id_map, setting_id_map, script_json)
+
+                        ff_prompt_tpl = load_prompt('reference', 'first_frame', 'zh' if is_zh else 'en')
+                        ff_prompt_resp = self._cancellable_query(
+                            llm,
+                            prompt=ff_prompt_tpl.format(
+                                plot=plot,
+                                character_description=char_desc,
+                                setting_description=set_desc
+                            ),
+                            model=llm_model
+                        )
+                        if hasattr(ff_prompt_resp, 'content'):
+                            ff_prompt = ff_prompt_resp.content.strip()
+                        else:
+                            ff_prompt = str(ff_prompt_resp).strip()
+                        prompt_map[segment_id] = ff_prompt
+                        
+                        logger.info(f"[{segment_id}] first-frame prompt: {ff_prompt[:80]}...")
+                        self._report_progress("参考图", f"准备提示词: {segment_id}", calc_pct_regen(i * steps_per_segment + 1))
 
                     # 并发生成图像
                     self._report_progress("参考图", "生成参考图...", calc_pct_regen(total * 2))
                     with ThreadPoolExecutor(max_workers=concurrency) as executor:
                         futs = {}
-                        for shot_id in regen_scenes:
-                            shot = fresh_shot_map.get(shot_id, {})
-                            refs = self._collect_refs(shot, asset_map, char_id_map, setting_id_map)
+                        for segment_id in regen_scenes:
+                            seg = fresh_segment_map.get(segment_id, {})
+                            refs = self._collect_refs(seg, asset_map, char_id_map, setting_id_map)
                             char_desc, set_desc = self._get_descriptions(
-                                shot, char_id_map, setting_id_map, script_json
+                                seg, char_id_map, setting_id_map, script_json
                             )
                             fut = executor.submit(
                                 self._generate_one, img_client, sid,
-                                shot, prompt_map[shot_id], refs,
+                                seg, prompt_map[segment_id], refs,
                                 style, it2i, t2i, video_ratio, resolution, vlm_model,
                                 character_description=char_desc, setting_description=set_desc
                             )
-                            futs[fut] = shot_id
+                            futs[fut] = segment_id
                         for fut in as_completed(futs):
-                            shot_id_done = futs[fut]
+                            segment_id_done = futs[fut]
                             try:
                                 _, result_path, eval_result = fut.result()
                             except Exception as e:
-                                logger.error(f"Regen future error for {shot_id_done}: {e}")
+                                logger.error(f"Regen future error for {segment_id_done}: {e}")
                                 result_path = None
                             done += 1
-                            step = done * steps_per_shot
+                            step = done * steps_per_segment
                             pct = calc_pct_regen(step)
                             if result_path:
-                                selected_images[shot_id_done] = result_path
-                                versions = self._list_versions(sid, shot_id_done)
-                                self._report_progress("参考图", f"完成: {shot_id_done}", pct, data={
+                                selected_images[segment_id_done] = result_path
+                                versions = self._list_versions(sid, segment_id_done)
+                                self._report_progress("参考图", f"完成: {segment_id_done}", pct, data={
                                     "asset_complete": {
-                                        "type": "scenes", "id": shot_id_done,
+                                        "type": "scenes", "id": segment_id_done,
                                         "status": "done",
                                         "selected": result_path,
                                         "versions": versions,
                                     }
                                 })
                             else:
-                                self._report_progress("参考图", f"失败: {shot_id_done}", pct, data={
+                                self._report_progress("参考图", f"失败: {segment_id_done}", pct, data={
                                     "asset_complete": {
-                                        "type": "scenes", "id": shot_id_done,
+                                        "type": "scenes", "id": segment_id_done,
                                         "status": "failed",
                                         "selected": "", "versions": [],
                                     }
@@ -613,39 +652,39 @@ class ReferenceGeneratorAgent(AgentInterface):
                 await loop.run_in_executor(None, regen_run)
 
                 # 重新生成后更新 scene2image（同步最新版本信息）
-                self._update_scene2image(sid, fresh_shots, result_file, {}, selected_images)
+                self._update_scene2image(sid, fresh_segments, result_file, prompt_map, selected_images)
 
                 self._report_progress("参考图", "完成", 100)
-                return self._build_payload(sid, fresh_shots)
+                return self._build_payload(sid, fresh_segments)
 
         # ═══ 正常流程：全量生成 ═══
         self._report_progress("参考图", "加载分镜数据...", 5)
 
         # 发送预览列表
-        preview = self._build_preview(sid, shots)
+        preview = self._build_preview(sid, segments)
         self._report_progress("参考图", "加载分镜列表", 8, data={"assets_preview": {"scenes": preview}})
 
         llm = LLM()
 
         def run():
             # 筛选需要生成的（跳过已有图的）
-            pending_shots = []
+            pending_segments = []
             selected_images = {}
-            for shot in shots:
-                shot_id = shot['shot_id']
-                existing = self._list_versions(sid, shot_id)
+            for seg in segments:
+                segment_id = seg['segment_id']
+                existing = self._list_versions(sid, segment_id)
                 if existing:
                     continue
-                pending_shots.append(shot)
+                pending_segments.append(seg)
 
-            if not pending_shots:
+            if not pending_segments:
                 self._report_progress("参考图", "所有分镜图已存在", 95)
                 return
 
-            total = len(pending_shots)
+            total = len(pending_segments)
             # 每分镜5个步骤：准备(1)、生成(3)、完成(1)
-            steps_per_shot = 5
-            total_steps = total * steps_per_shot + 1  # +1 是加载数据步骤
+            steps_per_segment = 5
+            total_steps = total * steps_per_segment + 1  # +1 是加载数据步骤
 
             def calc_pct(step: int) -> int:
                 """根据步骤计算进度百分比"""
@@ -653,91 +692,91 @@ class ReferenceGeneratorAgent(AgentInterface):
 
             done = 0
 
-            # 步骤1：加载数据
-            self._report_progress("参考图", "准备生成...", calc_pct(0))
-
-            # 步骤2-6(每分镜)：准备提示词
-            first_frame_prompts = {}  # shot_id -> prompt
-            style = input_data.get('video_style', '')
-            for i, shot in enumerate(pending_shots):
-                shot_id = shot['shot_id']
-                visual_prompt = shot.get('visual_prompt', '')
-                
-                # Load the new translation/style prompt template
-                prompt_text = load_prompt('reference', "first_frame", 'zh' if is_zh else 'en').format(
-                    visual_prompt=visual_prompt, 
-                    style=style
-                )
-                
-                # Call LLM to translate and append style tags
-                try:
-                    ff_prompt_resp = llm.query(prompt_text, max_tokens=1000, temperature=0.7)
-                    if hasattr(ff_prompt_resp, 'content'):
-                        ff_prompt = ff_prompt_resp.content.strip()
-                    else:
-                        ff_prompt = str(ff_prompt_resp).strip()
-                except Exception as e:
-                    logger.error(f"Error generating first-frame prompt for {shot_id}: {e}")
-                    ff_prompt = visual_prompt  # Fallback to pure visual prompt
-                
-                first_frame_prompts[shot_id] = ff_prompt
-                logger.info(f"[{shot_id}] first-frame prompt: {ff_prompt[:80]}...")
-                step = i * steps_per_shot + 1
-                self._report_progress("参考图", f"准备提示词: {shot_id}", calc_pct(step))
-
-            # 步骤7+(每分镜3步)：并发生成图像
-            self._report_progress("参考图", "生成参考图...", calc_pct(total * 2))
-            tasks = []
-            for shot in pending_shots:
-                shot_id = shot['shot_id']
-                refs = self._collect_refs(shot, asset_map, char_id_map, setting_id_map)
-                char_desc, set_desc = self._get_descriptions(
-                    shot, char_id_map, setting_id_map, script_json
-                )
-                tasks.append((shot, first_frame_prompts[shot_id], refs, char_desc, set_desc))
-
+            # 步骤2-6(每片段)：流式生成提示词并立即开始图像生成
+            self._report_progress("参考图", "开始生成...", calc_pct(0))
+            
+            first_frame_prompts = {}  # 用于最后写回结果文件
+            
             with ThreadPoolExecutor(max_workers=concurrency) as executor:
                 futs = {}
-                for shot, ff_prompt, refs, char_desc, set_desc in tasks:
-                    shot_id = shot['shot_id']
+                done = 0
+                
+                for i, seg in enumerate(pending_segments):
+                    segment_id = seg['segment_id']
+                    
+                    # 1. 准备该片段的视觉提示词
+                    plot = " ".join([s.get('content', '') for s in seg.get('shots', [])])
+                    char_desc, set_desc = self._get_descriptions(seg, char_id_map, setting_id_map, script_json)
+                    ff_prompt_tpl = load_prompt('reference', "first_frame", 'zh' if is_zh else 'en')
+                    
+                    try:
+                        ff_prompt_resp = self._cancellable_query(
+                            llm,
+                            prompt=ff_prompt_tpl.format(
+                                plot=plot,
+                                character_description=char_desc,
+                                setting_description=set_desc
+                            ),
+                            model=llm_model
+                        )
+                        if hasattr(ff_prompt_resp, 'content'):
+                            ff_prompt = ff_prompt_resp.content.strip()
+                        else:
+                            ff_prompt = str(ff_prompt_resp).strip()
+                    except Exception as e:
+                        logger.error(f"Error generating first-frame prompt for {segment_id}: {e}")
+                        ff_prompt = plot[:200]
+                    
+                    first_frame_prompts[segment_id] = ff_prompt
+                    logger.info(f"[{segment_id}] Prompt ready, starting image generation...")
+
+                    # 2. 立即提交图像生成任务，不再等待其他片段的提示词
+                    refs = self._collect_refs(seg, asset_map, char_id_map, setting_id_map)
                     fut = executor.submit(
                         self._generate_one, img_client, sid,
-                        shot, ff_prompt, refs,
+                        seg, ff_prompt, refs,
                         style, it2i, t2i, video_ratio, resolution, vlm_model,
                         character_description=char_desc, setting_description=set_desc
                     )
-                    futs[fut] = shot_id
+                    futs[fut] = segment_id
+                    
+                    # 报告进度（提交任务也算一点进度）
+                    self._report_progress("参考图", f"正在生成: {segment_id}", calc_pct(i * steps_per_segment))
+
+                # 3. 等待所有任务完成
                 cancelled = False
                 for fut in as_completed(futs):
-                    shot_id_done = futs[fut]
+                    segment_id_done = futs[fut]
                     try:
                         _, result_path, eval_result = fut.result()
                     except Exception as e:
-                        logger.error(f"Image future error for {shot_id_done}: {e}")
+                        logger.error(f"Image future error for {segment_id_done}: {e}")
                         result_path = None
+                    
                     done += 1
-                    # 每个分镜完成时更新进度
-                    step = done * steps_per_shot
+                    step = done * steps_per_segment
                     pct = calc_pct(step)
+                    
                     if result_path:
-                        selected_images[shot_id_done] = result_path
-                        versions = self._list_versions(sid, shot_id_done)
-                        self._report_progress("参考图", f"完成: {shot_id_done}", pct, data={
+                        selected_images[segment_id_done] = result_path
+                        versions = self._list_versions(sid, segment_id_done)
+                        self._report_progress("参考图", f"完成: {segment_id_done}", pct, data={
                             "asset_complete": {
-                                "type": "scenes", "id": shot_id_done,
+                                "type": "scenes", "id": segment_id_done,
                                 "status": "done",
                                 "selected": result_path,
                                 "versions": versions,
                             }
                         })
                     else:
-                        self._report_progress("参考图", f"失败: {shot_id_done}", pct, data={
+                        self._report_progress("参考图", f"失败: {segment_id_done}", pct, data={
                             "asset_complete": {
-                                "type": "scenes", "id": shot_id_done,
+                                "type": "scenes", "id": segment_id_done,
                                 "status": "failed",
                                 "selected": "", "versions": [],
                             }
                         })
+                    
                     # 检查取消
                     if self.cancellation_check and self.cancellation_check():
                         logger.info("ReferenceGeneratorAgent: 用户取消，停止等待剩余任务")
@@ -753,17 +792,17 @@ class ReferenceGeneratorAgent(AgentInterface):
                 self._report_progress("参考图", "保存结果...", 96)
 
             # 写回结果文件
-            self._update_scene2image(sid, shots, result_file, first_frame_prompts, selected_images)
+            self._update_scene2image(sid, segments, result_file, first_frame_prompts, selected_images)
 
         loop = asyncio.get_running_loop()
         try:
             await loop.run_in_executor(None, run)
         except Exception as e:
             if "cancel" in str(e).lower():
-                logger.info("ReferenceGeneratorAgent: 用户取消，返回已完成���部分结果")
+                logger.info("ReferenceGeneratorAgent: 用户取消，返回已完成部分结果")
                 self._report_progress("参考图", "已取消（保留已完成图片）", 100)
-                return self._build_payload(sid, shots)
+                return self._build_payload(sid, segments)
             raise
 
         self._report_progress("参考图", "完成", 100)
-        return self._build_payload(sid, shots)
+        return self._build_payload(sid, segments)

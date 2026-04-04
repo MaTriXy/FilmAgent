@@ -1,10 +1,10 @@
 # -*- coding: utf-8 -*-
 """
-阶段5: 视频生成智能体
-分镜参考图 → 各分镜视频片段
-- 视频提示词使用阶段3的原始分镜剧情描述(plot)，而非视觉描述或首帧图像提示词
-- 参考图使用用户在阶段4选择的版本，而非第一版
-- 支持逐项实时预览、重新生成、多版本管理
+阶段5: 视频生成智能体 (适配 Session JSON 格式)
+- 从 session.json 的 artifacts["storyboard"] 读取拍摄片段(Segments)
+- 视频提示词：风格前缀 + 分镜列表(分镜1: [时长] content...)
+- 参考图：从 session.json 的 artifacts["reference_generation"] 或 scene2image 读取
+- 支持逐项并发生成、实时预览、重新生成
 """
 
 import os
@@ -22,7 +22,7 @@ logger = logging.getLogger(__name__)
 
 
 class VideoDirectorAgent(AgentInterface):
-    """视频生成：分镜参考图(阶段4用户选择) + 分镜剧情描述(阶段3 plot) → 视频片段"""
+    """视频生成：拍摄片段(Segments) → 组装提示词 → 视频片段"""
 
     def __init__(self):
         super().__init__(name="VideoDirector")
@@ -33,22 +33,22 @@ class VideoDirectorAgent(AgentInterface):
     def _video_base(sid: str) -> str:
         return os.path.join('code/result/video', str(sid))
 
-    def _list_versions(self, sid: str, shot_id: str) -> List[str]:
-        """列出某个分镜视频的所有历史版本"""
+    def _list_versions(self, sid: str, segment_id: str) -> List[str]:
+        """列出某个片段视频的所有历史版本"""
         video_dir = self._video_base(sid)
-        pattern = os.path.join(video_dir, f"{shot_id}*.mp4")
+        pattern = os.path.join(video_dir, f"{segment_id}*.mp4")
         files = [f for f in sorted(glob.glob(pattern), key=os.path.getmtime)
                  if not f.endswith('_final.mp4')]
         return files
 
-    def _next_version_path(self, sid: str, shot_id: str) -> str:
+    def _next_version_path(self, sid: str, segment_id: str) -> str:
         """获取下一个版本路径"""
         video_dir = self._video_base(sid)
         os.makedirs(video_dir, exist_ok=True)
 
-        existing = self._list_versions(sid, shot_id)
+        existing = self._list_versions(sid, segment_id)
         if not existing:
-            return os.path.join(video_dir, f"{shot_id}.mp4")
+            return os.path.join(video_dir, f"{segment_id}.mp4")
 
         max_v = 1
         for fp in existing:
@@ -57,26 +57,25 @@ class VideoDirectorAgent(AgentInterface):
             if m:
                 max_v = max(max_v, int(m.group(1)))
 
-        return os.path.join(video_dir, f"{shot_id}_v{max_v + 1}.mp4")
+        return os.path.join(video_dir, f"{segment_id}_v{max_v + 1}.mp4")
 
     # ─── 视频生成 ───
 
-    def _generate_one(self, sid: str, shot_id: str, prompt: str,
+    def _generate_one(self, sid: str, segment_id: str, prompt: str,
                       img_path: str, video_model: str,
-                      duration: int = 5, sound: str = "",
+                      duration: int = 10, sound: str = "",
                       shot_type: str = "multi",
                       video_ratio: str = "16:9") -> tuple:
-        """生成单个分镜视频，返回 (shot_id, path_or_None)"""
-        # 取消时直接跳过，不抛异常，以保留已生成的部分结果
+        """生成单个视频片段，返回 (segment_id, path_or_None)"""
         if self.cancellation_check and self.cancellation_check():
-            logger.info(f"VideoDirectorAgent: {shot_id} 跳过（用户取消）")
-            return shot_id, None
+            logger.info(f"VideoDirectorAgent: {segment_id} 跳过（用户取消）")
+            return segment_id, None
 
         if not os.path.exists(img_path):
-            logger.warning(f"Image missing for {shot_id}: {img_path}")
-            return shot_id, None
+            logger.warning(f"Image missing for {segment_id}: {img_path}")
+            return segment_id, None
 
-        save_path = self._next_version_path(sid, shot_id)
+        save_path = self._next_version_path(sid, segment_id)
         try:
             from tool.video_client import VideoClient
             client = VideoClient()
@@ -90,78 +89,98 @@ class VideoDirectorAgent(AgentInterface):
                 shot_type=shot_type,
                 video_ratio=video_ratio,
             )
-            return shot_id, save_path
+            return segment_id, save_path
         except Exception as e:
-            logger.error(f"Video gen failed for {shot_id}: {e}")
+            logger.error(f"Video gen failed for {segment_id}: {e}")
             if os.path.exists(save_path):
                 try:
                     os.remove(save_path)
                 except Exception:
                     pass
-        return shot_id, None
+        return segment_id, None
 
-    # ─── 排序 ───
+    # ─── 提示词组装 ───
 
-    @staticmethod
-    def _sort_shot_keys(keys: list) -> list:
-        """对 shot_id 排序: shot_001_01, shot_001_02, shot_002_01, ..."""
-        def sort_key(k):
-            nums = re.findall(r'(\d+)', k)
-            return tuple(int(n) for n in nums) if nums else (0,)
-        return sorted(keys, key=sort_key)
+    def _assemble_prompt(self, segment: dict, style: str) -> str:
+        """组装视频提示词
+        格式：
+        风格控制：用户选择的风格, 电影质感
+        分镜列表：分镜1:[时长] content... 分镜2:[时长] content...
+        """
+        prompt = f"风格控制：{style}风格, 电影质感\n"
+        prompt += "分镜列表："
+        
+        shots = segment.get("shots", [])
+        for i, shot in enumerate(shots, 1):
+            dur = shot.get("duration", 5)
+            content = shot.get("content", "").strip()
+            prompt += f"\n分镜{i}：[{dur}秒] {content}"
+            
+        return prompt
 
-    # ─── 预览 / Payload 构建 ───
+    def _get_style_keywords(self, session_data: dict) -> str:
+        """从会话数据获取风格关键词"""
+        style = session_data.get('style', 'realistic').lower()
+        
+        STYLE_MAP = {
+            "anime": "anime style, vibrant colors, clean lines,",
+            "realistic": "photorealistic, cinematic lighting, high-detail textures,",
+            "cartoon": "cartoon style, thick outlines, bold colors,",
+            "3d-disney": "3D CGI animation, Disney/Pixar style, smooth textures,",
+            "oil-painting": "oil painting, artistic brushstrokes, rich textures,",
+            "chinese-ink": "Chinese ink wash painting, traditional style, soft strokes,"
+        }
+        return STYLE_MAP.get(style, "cinematic, high quality,")
 
-    @staticmethod
-    def _shot_display_name(shot_id: str) -> str:
-        """shot_001_02 → 场景1-镜头2"""
-        nums = re.findall(r'(\d+)', shot_id)
-        if len(nums) >= 2:
-            return f"场景{int(nums[0])}-镜头{int(nums[1])}"
-        elif len(nums) == 1:
-            return f"场景{int(nums[0])}"
-        return shot_id
+    # ─── 参考图获取 ───
 
-    def _build_preview(self, sid: str, shot_keys: list, s2i: dict) -> list:
-        """构建视频片段预览列表"""
+    def _get_reference_image(self, sid: str, segment_id: str, scene_map: dict) -> str:
+        """获取参考图路径：优先用选中的版本，次之用最新版本"""
+        # 1. 检查 session 中 artifacts.reference_generation.scenes 里的 selected
+        if segment_id in scene_map and scene_map[segment_id].get("selected"):
+            path = scene_map[segment_id]["selected"]
+            if os.path.exists(path):
+                return path
+
+        # 2. 回退：扫描磁盘 Scenes 目录
+        from .reference_agent import ReferenceGeneratorAgent
+        versions = ReferenceGeneratorAgent._list_versions_static(sid, segment_id)
+        if versions:
+            return versions[-1]
+
+        # 3. 默认路径
+        return os.path.abspath(os.path.join('code/result/image', str(sid), 'Scenes', f"{segment_id}.jpg"))
+
+    # ─── 预览 / Payload ───
+
+    def _build_preview(self, sid: str, segments: list, scene_map: dict, style_name: str = "") -> list:
         preview = []
-        for idx, shot_id in enumerate(shot_keys, 1):
-            versions = self._list_versions(sid, shot_id)
-            entry = s2i.get(shot_id, {})
-            desc = entry.get('plot', '') or entry.get('video_prompt', '') or entry.get('prompt', '')
+        for idx, seg in enumerate(segments, 1):
+            segment_id = seg["segment_id"]
+            versions = self._list_versions(sid, segment_id)
             preview.append({
-                "id": shot_id,
-                "name": self._shot_display_name(shot_id),
+                "id": segment_id,
+                "name": f"片段{idx} ({seg.get('location', '')})",
                 "index": idx,
-                "description": desc,
-                "duration": entry.get('duration', 5),
+                "description": self._assemble_prompt(seg, style_name),
+                "duration": seg.get('total_duration', 10),
                 "selected": versions[-1] if versions else "",
                 "versions": versions,
                 "status": "done" if versions else "pending",
             })
         return preview
 
-    def _build_payload(self, sid: str, shot_keys: list, s2i: dict, clip_descriptions: dict = None) -> dict:
-        """构建最终 payload
-
-        Args:
-            clip_descriptions: 用户修改的提示词，优先使用
-        """
+    def _build_payload(self, sid: str, segments: list, style_name: str = "") -> dict:
         clips = []
-        for idx, shot_id in enumerate(shot_keys, 1):
-            versions = self._list_versions(sid, shot_id)
-            entry = s2i.get(shot_id, {})
-            # 优先使用用户修改的描述，否则用 scene2image 中的原始描述
-            if clip_descriptions and shot_id in clip_descriptions:
-                desc = clip_descriptions[shot_id]
-            else:
-                desc = entry.get('plot', '') or entry.get('video_prompt', '') or entry.get('prompt', '')
+        for idx, seg in enumerate(segments, 1):
+            segment_id = seg["segment_id"]
+            versions = self._list_versions(sid, segment_id)
             clips.append({
-                "id": shot_id,
-                "name": self._shot_display_name(shot_id),
+                "id": segment_id,
+                "name": f"片段{idx}",
                 "index": idx,
-                "description": desc,
-                "duration": entry.get('duration', 5),
+                "description": self._assemble_prompt(seg, style_name),
+                "duration": seg.get('total_duration', 10),
                 "selected": versions[-1] if versions else "",
                 "versions": versions,
                 "status": "done" if versions else "failed",
@@ -174,453 +193,227 @@ class VideoDirectorAgent(AgentInterface):
             "stage_completed": True,
         }
 
-    # ─── 视频提示词前缀/后缀配置 ───
-
-    # 尝试从模板文件加载前缀/后缀，失败则使用默认值
-    _VIDEO_PROMPT_PREFIX = None
-    _VIDEO_PROMPT_SUFFIX = None
-
-    @classmethod
-    def _load_video_enhance_prompt(cls) -> tuple:
-        """加载视频提示词优化模板"""
-        if cls._VIDEO_PROMPT_PREFIX is not None:
-            return cls._VIDEO_PROMPT_PREFIX, cls._VIDEO_PROMPT_SUFFIX
+    def _update_session_video_data(self, sid: str, segments: list, style_name: str) -> None:
+        """同步视频生成结果到 session.json 的 artifacts 中，适配前端读取"""
+        session_path = os.path.join('code/data/sessions', f'{sid}.json')
+        if not os.path.exists(session_path):
+            return
 
         try:
-            from prompts.loader import PROMPTS_DIR
-            import os
-            enhance_file = os.path.join(PROMPTS_DIR, 'video', 'enhance.txt')
-            if os.path.exists(enhance_file):
-                with open(enhance_file, 'r', encoding='utf-8') as f:
-                    content = f.read()
-
-                prefix = ""
-                suffix = ""
-                current_section = None
-
-                for line in content.split('\n'):
-                    line = line.strip()
-                    if not line or line.startswith('#'):
-                        continue
-                    if line == '[prefix]':
-                        current_section = 'prefix'
-                    elif line == '[suffix]':
-                        current_section = 'suffix'
-                    elif line.startswith('[') and line.endswith(']'):
-                        # 遇到新的 section（如 [style_keywords]），停止解析
-                        current_section = None
-                    elif current_section == 'prefix':
-                        prefix += line + " "
-                    elif current_section == 'suffix':
-                        suffix += " " + line
-
-                cls._VIDEO_PROMPT_PREFIX = prefix.strip()
-                cls._VIDEO_PROMPT_SUFFIX = suffix.strip()
-                logger.info(f"Loaded video enhance prompt from file: prefix={len(cls._VIDEO_PROMPT_PREFIX)} chars, suffix={len(cls._VIDEO_PROMPT_SUFFIX)} chars")
-                return cls._VIDEO_PROMPT_PREFIX, cls._VIDEO_PROMPT_SUFFIX
+            with open(session_path, 'r', encoding='utf-8') as f:
+                data = json.load(f)
+            
+            payload = self._build_payload(sid, segments, style_name)
+            data.setdefault("artifacts", {})["video_generation"] = payload["payload"]
+            
+            # 同时保留一份给后端的 scene2video (如果需要)
+            # data[sid]["scene2video"] = ... (可选)
+            
+            with open(session_path, 'w', encoding='utf-8') as f:
+                json.dump(data, f, indent=4, ensure_ascii=False)
         except Exception as e:
-            logger.warning(f"Failed to load video enhance prompt: {e}")
-
-        # 默认值
-        cls._VIDEO_PROMPT_PREFIX = (
-            "high quality, detailed, cinematic footage, smooth motion, natural movement, "
-        )
-        cls._VIDEO_PROMPT_SUFFIX = (
-            ", realistic, no blur, no distortion, professional lighting, film grain"
-        )
-        return cls._VIDEO_PROMPT_PREFIX, cls._VIDEO_PROMPT_SUFFIX
-
-    # 视频API字符限制（可灵2500，万象也类似）
-    MAX_PROMPT_LENGTH = 2500
-
-    # ─── 风格关键词映射 ───
-    # 根据项目风格添加对应的视觉描述词
-
-    STYLE_VIDEO_KEYWORDS = {
-        # 动漫/动画风格
-        "anime": "anime style, animated, cel-shaded, vibrant colors, manga aesthetic, ",
-        "cartoon": "cartoon style, animated, colorful, fun, children's book illustration, ",
-        # 写实风格
-        "realistic": "photorealistic, realistic, natural lighting, detailed textures, cinema photography, ",
-        "photorealistic": "photorealistic, realistic, natural lighting, detailed textures, cinema photography, ",
-        # 3D 迪士尼风格
-        "3d-disney": "3D animation, Disney style, pixar, CGI, smooth textures, computer generated, ",
-        "3d": "3D animation, CGI, computer generated, smooth textures, digital cinema, ",
-        # 油画风格
-        "oil-painting": "oil painting style, impasto, classical art, painterly, rich brushstrokes, ",
-        "watercolor": "watercolor style, delicate, soft colors, artistic, flowing, ",
-        # 漫画风格
-        "comic-book": "comic book style, vibrant, bold outlines, pop art, graphic novel, ",
-        # 赛博朋克
-        "cyberpunk": "cyberpunk, neon lights, futuristic, dark atmosphere, sci-fi, ",
-        # 中国风
-        "chinese-ink": "Chinese ink painting style, traditional, minimalist, brush strokes, oriental art, ",
-        "ink": "Chinese ink painting style, traditional, minimalist, brush strokes, oriental art, ",
-    }
-
-    def _get_style_keywords(self, sid: str) -> str:
-        """获取项目风格对应的视频关键词"""
-        try:
-            from config import settings
-            result_file = os.path.join(settings.RESULT_DIR, 'script', f'script_{sid}.json')
-            if os.path.exists(result_file):
-                with open(result_file, 'r', encoding='utf-8') as f:
-                    data = json.load(f)
-                session_data = data.get(str(sid), {})
-                style = session_data.get('overall_style', '').lower().strip()
-                if style and style in self.STYLE_VIDEO_KEYWORDS:
-                    logger.info(f"Using style keywords for video: {style}")
-                    return self.STYLE_VIDEO_KEYWORDS[style]
-        except Exception as e:
-            logger.debug(f"Could not get style for video prompt: {e}")
-        return ""
-
-    # ─── 辅助：获取分镜的视频提示词和参考图路径 ───
-
-    def _enhance_video_prompt(self, base_prompt: str, sid: str = None) -> str:
-        """
-        增强视频提示词：添加前缀后缀优化生成效果
-        不截断，发送完整提示词给API
-        """
-        if not base_prompt:
-            return base_prompt
-
-        prefix, suffix = self._load_video_enhance_prompt()
-        base_lower = base_prompt.lower().strip()
-
-        # 获取风格关键词
-        style_keywords = ""
-        if sid:
-            style_keywords = self._get_style_keywords(sid)
-
-        # 获取对话语言要求
-        dialog_language = ""
-        if sid:
-            from config import settings
-            import os
-            script_file = os.path.join(settings.RESULT_DIR, 'script', f'script_{sid}.json')
-            if os.path.exists(script_file):
-                import json
-                with open(script_file, 'r', encoding='utf-8') as f:
-                    data = json.load(f)
-                    script_data = data.get(str(sid), {})
-                    # title 可能在 script_json 子对象中
-                    title = script_data.get('title') or script_data.get('script_json', {}).get('title', '')
-                    # 判断语言：检查标题是否包含中文字符
-                    is_zh = any('\u4e00' <= c <= '\u9fff' for c in title)
-                    if is_zh:
-                        dialog_language = "注意：人物对话必须使用中文，不要使用英文。"
-                    else:
-                        dialog_language = "Note: Character dialogues must be in English."
-
-        # 构建增强后的提示词
-        # 检查是否已包含前缀关键词
-        has_prefix = any(kw in base_lower for kw in ["high quality", "cinematic", "smooth motion", "anime", "photorealistic"])
-        # 检查是否已包含后缀关键词
-        has_suffix = any(kw in base_lower for kw in ["film grain", "realistic", "professional lighting", "masterpiece"])
-
-        enhanced = base_prompt.strip()
-
-        # 添加对话语言要求
-        if dialog_language:
-            enhanced = enhanced + " " + dialog_language
-
-        # 添加风格关键词（前缀之前）
-        if style_keywords:
-            enhanced = style_keywords + enhanced
-
-        if prefix and not has_prefix:
-            enhanced = prefix + enhanced
-
-        if suffix and not has_suffix:
-            enhanced = enhanced + suffix
-
-        logger.info(f"Video prompt enhanced: {len(base_prompt)} -> {len(enhanced)} chars")
-        # 不截断，发送完整提示词
-        return enhanced
-
-    def _get_shot_prompt(self, entry: dict, enhance: bool = True, sid: str = None, shot_id: str = None, clip_descriptions: dict = None) -> str:
-        """获取视频提示词：优先用用户修改的提示词，其次用 plot（剧情描述），兼容旧数据回退到 video_prompt"""
-        # 优先使用用户修改的提示词
-        if not shot_id:
-            shot_id = entry.get('shot_id') or entry.get('id', '')
-        if clip_descriptions and shot_id and clip_descriptions.get(shot_id):
-            base_prompt = clip_descriptions[shot_id]
-        else:
-            base_prompt = entry.get('plot', '') or entry.get('video_prompt', '') or entry.get('prompt', '')
-        if enhance:
-            return self._enhance_video_prompt(base_prompt, sid)
-        return base_prompt
-
-    def _get_shot_image(self, sid: str, shot_id: str, entry: dict,
-                        selected_images: dict) -> str:
-        """获取参考图路径：优先用前端传入的用户选择，再用 scene2image 的 local_path，
-        最后回退到扫描磁盘最新版本"""
-        # 1. 前端传入的用户选择（stage 4 确认时携带）
-        if selected_images.get(shot_id):
-            path = selected_images[shot_id]
-            if os.path.exists(path):
-                return path
-            logger.warning(f"selected_images path missing for {shot_id}: {path}")
-
-        # 2. scene2image 中的 local_path
-        local_path = entry.get('local_path', '')
-        if local_path and os.path.exists(local_path):
-            return local_path
-
-        # 3. 回退：扫描磁盘，使用最新版本
-        from core.agents.reference_agent import ReferenceGeneratorAgent
-        versions = ReferenceGeneratorAgent._list_versions_static(sid, shot_id)
-        if versions:
-            logger.info(f"Fallback to latest version for {shot_id}: {versions[-1]}")
-            return versions[-1]
-
-        # 4. 最终回退：默认路径
-        return os.path.join('code/result/image', str(sid), 'Scenes', f"{shot_id}.jpg")
+            logger.error(f"Failed to update session video data: {e}")
 
     # ─── 核心流程 ───
 
     async def process(self, input_data: Any, intervention: Optional[Dict] = None) -> Dict:
         from config import settings
         
-        # 从 session.json 补齐缺失的参数（关键修复：防止前端漏传导致的默认值回退）
         input_data = self._merge_session_params(input_data)
-
         sid = input_data["session_id"]
+        
+        # ═══ 介入：用户选择指定版本 ═══
+        if intervention and "selected_clips" in intervention:
+            selected_clips = intervention["selected_clips"] # Dict[segment_id, path]
+            logger.info(f"[VideoAgent] 用户更新片段选择: {selected_clips}")
+            
+            session_path = os.path.join('code/data/sessions', f'{sid}.json')
+            if os.path.exists(session_path):
+                with open(session_path, 'r', encoding='utf-8') as f:
+                    data = json.load(f)
+                
+                clips = data.get("artifacts", {}).get("video_generation", {}).get("clips", [])
+                for clip in clips:
+                    cid = clip.get("id")
+                    if cid in selected_clips:
+                        clip["selected"] = selected_clips[cid]
+                
+                with open(session_path, 'w', encoding='utf-8') as f:
+                    json.dump(data, f, indent=4, ensure_ascii=False)
+            
+            # 返回当前状态
+            artifacts = data.get("artifacts", {})
+            episodes = artifacts.get('storyboard', {}).get('episodes', [])
+            segments = []
+            for ep in episodes:
+                segments.extend(ep.get("segments", []))
+            return self._build_payload(sid, segments)
+
         video_model = input_data.get("video_model", "") or settings.VIDEO_MODEL
-        # 根据 enable_concurrency 决定并发数
         enable_concurrency = input_data.get("enable_concurrency", True)
         from config_model import get_max_concurrency
         concurrency = get_max_concurrency(video_model, enable_concurrency)
-        selected_images = input_data.get("selected_images", {})
-        # 优先使用 input_data 中已有的 clips（包含用户修改的 description）
-        existing_clips = input_data.get("clips", [])
-        clip_descriptions = {c['id']: c['description'] for c in existing_clips if c.get('id') and c.get('description')}
-        clip_durations = {c['id']: c.get('duration', 10) for c in existing_clips if c.get('id')}
         
-        video_sound = input_data.get("video_sound", "on")
-        video_shot_type = input_data.get("video_shot_type", "multi")
         video_ratio = input_data.get("video_ratio", "16:9")
-        result_file = os.path.join(settings.RESULT_DIR, 'script', f'script_{sid}.json')
+        video_shot_type = input_data.get("video_shot_type", "multi")
+        
+        # 加载会话数据
+        session_path = os.path.join('code/data/sessions', f'{sid}.json')
+        with open(session_path, 'r', encoding='utf-8') as f:
+            session_data = json.load(f)
+            
+        artifacts = session_data.get("artifacts", {})
+        
+        # 1. 获取拍摄片段列表 (从 Storyboard)
+        episodes = artifacts.get('storyboard', {}).get('episodes', [])
+        segments = []
+        for ep in episodes:
+            segments.extend(ep.get("segments", []))
+            
+        if not segments:
+            raise Exception("未找到分镜片段数据，请先完成阶段3")
 
-        # 读取数据
-        with open(result_file, 'r', encoding='utf-8') as f:
-            results = json.load(f)
-        story_data = results[str(sid)]
-
-        s2i = story_data.get('scene2image', {})
-
-        # 1. 如果 input_data 传了 clips，则优先使用 input_data 中的结构
-        # 即使 scene2image 还没写回，也能根据 input_data 生成
-        if existing_clips:
-            logger.info(f"Using clips from input_data, count: {len(existing_clips)}")
-            # 补全 s2i 中可能缺失的项（例如新分镜）
-            for clip in existing_clips:
-                cid = clip['id']
-                if cid not in s2i:
-                    s2i[cid] = {
-                        "plot": clip.get('description', ''),
-                        "duration": clip.get('duration', 10),
-                    }
-                else:
-                    # 更新已有项的时长和描述（以 input_data 为准）
-                    if cid in clip_descriptions:
-                        s2i[cid]['plot'] = clip_descriptions[cid]
-                    if cid in clip_durations:
-                        s2i[cid]['duration'] = clip_durations[cid]
-
-        # 从 storyboard 获取时长数据（用于兜底更新）
-        storyboard = story_data.get('storyboard', {})
-        storyboard_shots_list = storyboard.get('shots', [])
-        shot_duration_map = {s.get('shot_id'): s.get('duration', 10) for s in storyboard_shots_list if s.get('shot_id')}
-
-        # 同步 scene2image 中的时长
-        for shot_id in s2i:
-            if shot_id in shot_duration_map:
-                s2i[shot_id]['duration'] = shot_duration_map[shot_id]
-
-        logger.info(f"VideoDirectorAgent: duration sync from storyboard: {list(shot_duration_map.keys())}")
-
-        # 兼容 shot_xxx_xx 和旧 Scene_x 格式
-        shot_keys = self._sort_shot_keys(list(s2i.keys()))
-        total = len(shot_keys)
-
-        logger.info(f"VideoDirectorAgent: total shots in scene2image = {total}, shot_keys = {shot_keys}")
-
-        if not shot_keys:
-            raise Exception("未找到场景图数据(scene2image)，请先完成阶段4")
+        # 2. 获取参考图路径映射 (从 Reference Generation)
+        ref_art = artifacts.get('reference_generation', {})
+        scene_list = ref_art.get('scenes', [])
+        scene_map = {s['id']: s for s in scene_list if 'id' in s}
+        
+        style_zh = session_data.get('style', 'realistic')
+        # 简单映射为中文显示名
+        style_map_zh = {
+            "anime": "动漫",
+            "realistic": "写实",
+            "cartoon": "卡通",
+            "3d-disney": "3D迪斯尼",
+            "oil-painting": "油画",
+            "chinese-ink": "国画",
+            "comic-book": "美漫",
+            "cyberpunk": "赛博朋克"
+        }
+        style_name = style_map_zh.get(style_zh, style_zh)
 
         # ═══ 介入：重新生成指定片段 ═══
         if intervention:
-            regen_clips = intervention.get("regenerate_clips", [])
-
-            if regen_clips:
-                self._report_progress("视频生成", "重新生成中...", 10)
-
+            regen_ids = intervention.get("regenerate_clips", [])
+            if regen_ids:
+                self._report_progress("视频生成", "重新生成中...", 5)
+                segment_map = {s['segment_id']: s for s in segments}
+                
                 def regen_run():
-                    regen_total = len(regen_clips)
                     done = 0
                     with ThreadPoolExecutor(max_workers=concurrency) as executor:
                         futs = {}
-                        for shot_id in regen_clips:
-                            entry = s2i.get(shot_id, {})
-                            prompt = self._get_shot_prompt(entry, sid=sid, shot_id=shot_id, clip_descriptions=clip_descriptions)
-                            img_path = self._get_shot_image(sid, shot_id, entry, selected_images)
-                            shot_duration = entry.get('duration', 5)
+                        for seg_id in regen_ids:
+                            seg = segment_map.get(seg_id)
+                            if not seg: continue
+                            prompt = self._assemble_prompt(seg, style_name)
+                            img_path = self._get_reference_image(sid, seg_id, scene_map)
+                            duration = seg.get("total_duration", 10)
                             fut = executor.submit(
-                                self._generate_one, sid, shot_id, prompt,
-                                img_path, video_model, shot_duration,
-                                sound_param, video_shot_type, video_ratio
+                                self._generate_one, sid, seg_id, prompt,
+                                img_path, video_model, duration,
+                                "", video_shot_type, video_ratio
                             )
-                            futs[fut] = shot_id
+                            futs[fut] = seg_id
                         for fut in as_completed(futs):
-                            shot_id_done = futs[fut]
+                            sid_done = futs[fut]
                             try:
-                                _, result_path = fut.result()
+                                _, res_path = fut.result()
                             except Exception as e:
-                                logger.error(f"Regen future error for {shot_id_done}: {e}")
-                                result_path = None
+                                logger.error(f"Regen future error for {sid_done}: {e}")
+                                res_path = None
                             done += 1
-                            pct = 10 + int(85 * done / max(regen_total, 1))
-                            if result_path:
-                                versions = self._list_versions(sid, shot_id_done)
-                                self._report_progress("视频生成", f"完成: {shot_id_done}", pct, data={
+                            pct = 5 + int(90 * done / max(1, len(regen_ids)))
+                            if res_path:
+                                versions = self._list_versions(sid, sid_done)
+                                self._report_progress("视频生成", f"完成: {sid_done}", pct, data={
                                     "asset_complete": {
-                                        "type": "clips", "id": shot_id_done,
+                                        "type": "clips", "id": sid_done,
                                         "status": "done",
-                                        "selected": result_path,
+                                        "selected": res_path,
                                         "versions": versions,
                                     }
                                 })
                             else:
-                                self._report_progress("视频生成", f"失败: {shot_id_done}", pct, data={
+                                self._report_progress("视频生成", f"失败: {sid_done}", pct, data={
                                     "asset_complete": {
-                                        "type": "clips", "id": shot_id_done,
+                                        "type": "clips", "id": sid_done,
                                         "status": "failed",
                                         "selected": "", "versions": [],
                                     }
                                 })
-                            # 检查取消：停止等待剩余任务
-                            if self.cancellation_check and self.cancellation_check():
-                                logger.info("VideoDirectorAgent: 用户取消重新生成，停止等待剩余任务")
-                                for f in futs:
-                                    if not f.done():
-                                        f.cancel()
-                                break
-
                 loop = asyncio.get_running_loop()
                 await loop.run_in_executor(None, regen_run)
-
-            self._report_progress("视频生成", "完成", 100)
-            return self._build_payload(sid, shot_keys, s2i, clip_descriptions)
+                
+                # 同步到 session artifacts
+                self._update_session_video_data(sid, segments, style_name)
+                
+                return self._build_payload(sid, segments, style_name)
 
         # ═══ 正常流程：全量生成 ═══
-        self._report_progress("视频生成", "加载场景数据...", 5)
-
-        # 发送预览列表
-        preview = self._build_preview(sid, shot_keys, s2i)
-        self._report_progress("视频生成", "加载视频列表", 8, data={"assets_preview": {"clips": preview}})
+        self._report_progress("视频生成", "正在准备数据...", 2)
+        preview = self._build_preview(sid, segments, scene_map, style_name)
+        self._report_progress("视频生成", "加载视频列表", 5, data={"assets_preview": {"clips": preview}})
 
         def run():
-            # 筛选需要生成的（跳过已有的）
             tasks = []
-            for shot_id in shot_keys:
-                existing = self._list_versions(sid, shot_id)
-                if existing:
-                    continue
-                entry = s2i.get(shot_id, {})
-                prompt = self._get_shot_prompt(entry, sid=sid, shot_id=shot_id, clip_descriptions=clip_descriptions)
-                img_path = self._get_shot_image(sid, shot_id, entry, selected_images)
-                shot_duration = entry.get('duration', 5)
-                tasks.append((shot_id, prompt, img_path, shot_duration))
-
+            for seg in segments:
+                seg_id = seg["segment_id"]
+                existing = self._list_versions(sid, seg_id)
+                if existing: continue
+                prompt = self._assemble_prompt(seg, style_name)
+                img_path = self._get_reference_image(sid, seg_id, scene_map)
+                duration = seg.get("total_duration", 10)
+                tasks.append((seg_id, prompt, img_path, duration))
             if not tasks:
-                self._report_progress("视频生成", "所有视频已存在", 95)
+                self._report_progress("视频生成", "所有视频片段已存在", 95)
                 return
-
-            gen_total = len(tasks)
             done = 0
-
-            cancelled = False
             with ThreadPoolExecutor(max_workers=concurrency) as executor:
                 futs = {}
-                for shot_id, prompt, img_path, shot_duration in tasks:
+                for seg_id, prompt, img_path, dur in tasks:
                     fut = executor.submit(
-                        self._generate_one, sid, shot_id, prompt,
-                        img_path, video_model, shot_duration,
-                        sound_param, video_shot_type, video_ratio
+                        self._generate_one, sid, seg_id, prompt,
+                        img_path, video_model, dur,
+                        "", video_shot_type, video_ratio
                     )
-                    futs[fut] = shot_id
+                    futs[fut] = seg_id
                 for fut in as_completed(futs):
-                    shot_id_done = futs[fut]
+                    sid_done = futs[fut]
                     try:
-                        _, result_path = fut.result()
+                        _, res_path = fut.result()
                     except Exception as e:
-                        logger.error(f"Video future error for {shot_id_done}: {e}")
-                        result_path = None
+                        logger.error(f"Video future error for {sid_done}: {e}")
+                        res_path = None
                     done += 1
-                    pct = 10 + int(85 * done / max(gen_total, 1))
-                    if result_path:
-                        versions = self._list_versions(sid, shot_id_done)
-                        self._report_progress("视频生成", f"完成: {shot_id_done}", pct, data={
+                    pct = 5 + int(90 * done / max(1, len(tasks)))
+                    if res_path:
+                        versions = self._list_versions(sid, sid_done)
+                        self._report_progress("视频生成", f"完成: {sid_done}", pct, data={
                             "asset_complete": {
-                                "type": "clips", "id": shot_id_done,
+                                "type": "clips", "id": sid_done,
                                 "status": "done",
-                                "selected": result_path,
+                                "selected": res_path,
                                 "versions": versions,
                             }
                         })
                     else:
-                        self._report_progress("视频生成", f"失败: {shot_id_done}", pct, data={
+                        self._report_progress("视频生成", f"失败: {sid_done}", pct, data={
                             "asset_complete": {
-                                "type": "clips", "id": shot_id_done,
+                                "type": "clips", "id": sid_done,
                                 "status": "failed",
                                 "selected": "", "versions": [],
                             }
                         })
-                    # 检查取消：停止等待剩余任务
                     if self.cancellation_check and self.cancellation_check():
-                        logger.info("VideoDirectorAgent: 用户取消，停止等待剩余任务")
                         for f in futs:
-                            if not f.done():
-                                f.cancel()
-                        cancelled = True
+                            if not f.done(): f.cancel()
                         break
-
-            if cancelled:
-                self._report_progress("视频生成", "已取消（保留已完成片段）", 96)
-            else:
-                self._report_progress("视频生成", "保存结果...", 96)
-
-            # 写回结果文件
-            with open(result_file, 'r', encoding='utf-8') as f:
-                res = json.load(f)
-            i2v_data = {}
-            for shot_id in shot_keys:
-                versions = self._list_versions(sid, shot_id)
-                entry = s2i.get(shot_id, {})
-                if versions:
-                    i2v_data[shot_id] = {
-                        "video_prompt": self._get_shot_prompt(entry, sid=sid, shot_id=shot_id, clip_descriptions=clip_descriptions),
-                        "input_path": self._get_shot_image(sid, shot_id, entry, selected_images),
-                        "output_path": versions[-1],
-                        "duration": entry.get('duration', 10),
-                        "status": "done",
-                    }
-            res[str(sid)]['image2video'] = i2v_data
-            with open(result_file, 'w', encoding='utf-8') as f:
-                json.dump(res, f, indent=4, ensure_ascii=False)
-
         loop = asyncio.get_running_loop()
-        try:
-            await loop.run_in_executor(None, run)
-        except Exception as e:
-            # 即使异常也保留已完成的部分结果
-            if "cancel" in str(e).lower():
-                logger.info("VideoDirectorAgent: 用户取消，返回已完成的部分结果")
-                self._report_progress("视频生成", "已取消（保留已完成片段）", 100)
-                return self._build_payload(sid, shot_keys, s2i, clip_descriptions)
-            raise
-
+        await loop.run_in_executor(None, run)
+        
+        # 同步到 session artifacts
+        self._update_session_video_data(sid, segments, style_name)
+        
         self._report_progress("视频生成", "完成", 100)
-        return self._build_payload(sid, shot_keys, s2i, clip_descriptions)
+        return self._build_payload(sid, segments, style_name)

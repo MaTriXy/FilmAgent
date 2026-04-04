@@ -151,12 +151,10 @@ export async function updateModels(
 
 export async function deleteSession(
   sessionId: string,
-  password: string,
 ): Promise<{ status: string }> {
   const resp = await fetch(`/api/sessions/${sessionId}`, {
     method: 'DELETE',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ password }),
   });
   if (!resp.ok) {
     const err = await resp.json().catch(() => ({ detail: '删除失败' }));

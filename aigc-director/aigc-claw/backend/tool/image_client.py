@@ -75,7 +75,7 @@ class ImageClient:
                        save_dir: Optional[str] = None,
                        session_id: Optional[str] = None,
                        video_ratio: Optional[str] = "16:9",
-                       resolution: Optional[str] = "1080P") -> List[str]:
+                       resolution: Optional[str] = "4K") -> List[str]:
         """
         Generate images based on prompt and optional reference images.
 

@@ -1,4 +1,4 @@
-export type StageStatus = 'pending' | 'running' | 'waiting' | 'completed' | 'error';
+export type StageStatus = 'pending' | 'running' | 'waiting' | 'completed' | 'error' | 'stopped';
 
 export interface StageState {
   status: StageStatus;

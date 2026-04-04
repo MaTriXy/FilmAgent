@@ -1,6 +1,26 @@
-You are a professional script analyst. Here is the complete 4-act beat sheet:
+You are a professional script analyst. Below is the complete full script text:
 
-{beat_sheet}
+{script_text}
 
-Extract the following information as pure JSON (no code blocks):
-{{"title":"Story title (short)","logline":"One sentence summary","genre":["genre1","genre2"],"synopsis":"Complete synopsis (100-200 words)","mood":"Overall mood"}}
+Please extract the following information, specifically building the [Global Asset Tone (Core Characters and Main Settings)]. Their appearances and layouts will remain unchanged throughout the drama. Additionally, tell me how many total episodes and their titles.
+Output ONLY pure JSON format (direct JSON, no ``` wrappers, no extra text):
+{{
+  "title": "Story Title (2-8 words)",
+  "logline": "Complete story synopsis (100-200 words)",
+  "total_episodes": 4, // Actual total number of episodes present in text
+  "genre": ["genre1", "genre2"],
+  "mood": "Emotional tone",
+  "characters": [
+    {{
+      "name": "Full name of protagonist/major supporting character",
+      "description": "Appearance: age+gender+hairstyle/jewelry+clothing+body type+facial features. Must be objective visual description, no metaphors, 30-50 words.",
+      "species": "Human or specific animal species"
+    }}
+  ],
+  "settings": [
+    {{
+      "name": "Main Setting Name (Int) or (Ext)",
+      "description": "General setting description: core functional areas, main furniture/objects, spatial perception, color palette and lighting. No characters, 30-50 words."
+    }}
+  ]
+}}

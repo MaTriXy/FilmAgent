@@ -33,7 +33,7 @@ interface HistoryItem {
 interface HomePageProps {
   onStartProject: (params: ProjectParams, autoMode?: boolean) => void;
   onResumeProject: (sessionId: string) => void;
-  onDeleteSession: (sessionId: string, password: string) => Promise<void>;
+  onDeleteSession: (sessionId: string) => Promise<void>;
   history: HistoryItem[];
 }
 
@@ -64,18 +64,16 @@ export default function HomePage({ onStartProject, onResumeProject, onDeleteSess
   // 管理模式状态
   const [manageMode, setManageMode] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
-  const [adminPassword, setAdminPassword] = useState('');
   const [deleteError, setDeleteError] = useState('');
   const [deleting, setDeleting] = useState(false);
 
   const handleDelete = async () => {
-    if (!deleteTarget || !adminPassword) return;
+    if (!deleteTarget) return;
     setDeleting(true);
     setDeleteError('');
     try {
-      await onDeleteSession(deleteTarget, adminPassword);
+      await onDeleteSession(deleteTarget);
       setDeleteTarget(null);
-      setAdminPassword('');
     } catch (e: any) {
       setDeleteError(e.message || '删除失败');
     } finally {
@@ -410,7 +408,7 @@ export default function HomePage({ onStartProject, onResumeProject, onDeleteSess
                     </div>
                     {manageMode ? (
                       <button
-                        onClick={(e) => { e.stopPropagation(); setDeleteTarget(item.id); setDeleteError(''); setAdminPassword(''); }}
+                        onClick={(e) => { e.stopPropagation(); setDeleteTarget(item.id); setDeleteError(''); }}
                         className="w-6 h-6 rounded-full bg-red-500 text-white flex items-center justify-center hover:bg-red-600 transition-colors flex-shrink-0 mt-0.5"
                         title="删除"
                       >
@@ -440,21 +438,12 @@ export default function HomePage({ onStartProject, onResumeProject, onDeleteSess
               <X className="w-4 h-4" />
             </button>
             <div className="flex items-center gap-2 mb-4">
-              <Lock className="w-4 h-4 text-gray-500" />
+              <Trash2 className="w-4 h-4 text-red-500" />
               <h4 className="text-sm font-semibold text-gray-700">确认删除</h4>
             </div>
-            <p className="text-xs text-gray-500 mb-3">删除后不可恢复，请输入管理员密码确认操作。</p>
-            <input
-              type="password"
-              placeholder="管理员密码"
-              value={adminPassword}
-              onChange={e => { setAdminPassword(e.target.value); setDeleteError(''); }}
-              onKeyDown={e => { if (e.key === 'Enter') handleDelete(); }}
-              className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-300 mb-2"
-              autoFocus
-            />
+            <p className="text-xs text-gray-500 mb-6">删除后不可恢复，确定要删除此项目吗？</p>
             {deleteError && <p className="text-xs text-red-500 mb-2">{deleteError}</p>}
-            <div className="flex gap-2 mt-2">
+            <div className="flex gap-2">
               <button
                 onClick={() => { setDeleteTarget(null); setDeleteError(''); }}
                 className="flex-1 text-sm py-1.5 rounded-lg border border-gray-200 text-gray-600 hover:bg-gray-50"
@@ -463,7 +452,7 @@ export default function HomePage({ onStartProject, onResumeProject, onDeleteSess
               </button>
               <button
                 onClick={handleDelete}
-                disabled={deleting || !adminPassword}
+                disabled={deleting}
                 className="flex-1 text-sm py-1.5 rounded-lg bg-red-500 text-white hover:bg-red-600 disabled:opacity-50"
               >
                 {deleting ? '删除中…' : '确认删除'}

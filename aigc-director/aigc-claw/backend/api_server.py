@@ -441,21 +441,23 @@ async def update_artifact(session_id: str, stage: str, request: Request):
     # 同步到：storyboard.shots[].visual_prompt
     # ══════════════════════════════════════════════════════════════
     elif stage == "reference_generation":
-        if "shots" in body:
+        if "segments" in body:
             # 修改视觉提示词 → 同步到 storyboard
-            # body.shots 是 [{shot_id: "...", visual_prompt: "..."}]
-            shot_id_to_prompt = {s['shot_id']: s.get('visual_prompt', '')
-                                 for s in body['shots'] if 'shot_id' in s}
+            # body.segments 是 [{segment_id: "...", visual_prompt: "..."}]
+            seg_id_to_prompt = {s['segment_id']: s.get('visual_prompt', '')
+                                for s in body['segments'] if 'segment_id' in s}
 
             storyboard_art = state.artifacts.get('storyboard', {})
-            # storyboard 结构: {shots: [...]} （无 payload 包装）
+            # storyboard 结构: {episodes: [{segments: [...]}]}
             if isinstance(storyboard_art, dict):
-                shots = storyboard_art.get('shots', [])
-                for shot in shots:
-                    if isinstance(shot, dict):
-                        shot_id = shot.get('shot_id')
-                        if shot_id in shot_id_to_prompt:
-                            shot['visual_prompt'] = shot_id_to_prompt[shot_id]
+                episodes = storyboard_art.get('episodes', [])
+                for ep in episodes:
+                    if isinstance(ep, dict):
+                        for seg in ep.get('segments', []):
+                            if isinstance(seg, dict):
+                                seg_id = seg.get('segment_id')
+                                if seg_id in seg_id_to_prompt:
+                                    seg['visual_prompt'] = seg_id_to_prompt[seg_id]
 
             # 同步到 reference_generation.scenes 的 description
             ref_art = state.artifacts.get('reference_generation', {})
@@ -464,11 +466,11 @@ async def update_artifact(session_id: str, stage: str, request: Request):
                 for scene in scenes:
                     if isinstance(scene, dict):
                         scene_id = scene.get('id')
-                        if scene_id in shot_id_to_prompt:
-                            scene['description'] = shot_id_to_prompt[scene_id]
+                        if scene_id in seg_id_to_prompt:
+                            scene['description'] = seg_id_to_prompt[scene_id]
 
-            # 移除 shots，避免覆盖 reference_generation artifact
-            body = {k: v for k, v in body.items() if k != "shots"}
+            # 移除 segments，避免覆盖 reference_generation artifact
+            body = {k: v for k, v in body.items() if k != "segments"}
 
         # 处理图片版本选择 {sceneId: path}
         ref_art = state.artifacts.get('reference_generation', {})
@@ -505,16 +507,16 @@ async def update_artifact(session_id: str, stage: str, request: Request):
         # 同步到 storyboard 和 video_generation.clips
         if clip_id_to_duration or clip_id_to_description:
             storyboard_art = state.artifacts.get('storyboard', {})
-            # storyboard 结构: {shots: [...]} （无 payload 包装）
+            # storyboard 结构: 从 shots 变更为了 episodes -> segments
             if isinstance(storyboard_art, dict):
-                shots = storyboard_art.get('shots', [])
-                for shot in shots:
-                    if isinstance(shot, dict):
-                        shot_id = shot.get('shot_id')
-                        if shot_id in clip_id_to_duration:
-                            shot['duration'] = clip_id_to_duration[shot_id]
-                        if shot_id in clip_id_to_description:
-                            shot['plot'] = clip_id_to_description[shot_id]
+                episodes = storyboard_art.get('episodes', [])
+                for ep in episodes:
+                    if isinstance(ep, dict):
+                        for seg in ep.get('segments', []):
+                            if isinstance(seg, dict):
+                                seg_id = seg.get('segment_id')
+                                if seg_id in clip_id_to_duration:
+                                    seg['total_duration'] = clip_id_to_duration[seg_id]
 
             # 更新 video_generation.clips 的 duration 和 description
             vid_art = state.artifacts.get('video_generation', {})
@@ -710,15 +712,8 @@ async def list_sessions():
 
 
 @app.delete("/api/sessions/{session_id}")
-async def delete_session(session_id: str, request: Request):
-    """删除历史记录（需要管理员密码）"""
-    try:
-        body = await request.json()
-    except Exception:
-        body = {}
-    password = body.get("password", "")
-    if not settings.ADMIN_PASSWORD or password != settings.ADMIN_PASSWORD:
-        raise HTTPException(403, "密码错误")
+async def delete_session(session_id: str):
+    """直接删除历史记录（无密码控制）"""
     deleted = workflow_engine.delete_session(session_id)
     if not deleted:
         raise HTTPException(404, "Session not found")
@@ -726,16 +721,8 @@ async def delete_session(session_id: str, request: Request):
 
 
 @app.delete("/api/sessions")
-async def cleanup_orphan_files(request: Request):
-    """清理孤立的结果文件（需要管理员密码）"""
-    try:
-        body = await request.json()
-    except Exception:
-        body = {}
-    password = body.get("password", "")
-    if not settings.ADMIN_PASSWORD or password != settings.ADMIN_PASSWORD:
-        raise HTTPException(403, "密码错误")
-
+async def cleanup_orphan_files():
+    """清理孤立的结果文件（无密码控制）"""
     # 获取所有 session ID
     session_ids = set()
     for f in os.listdir(workflow_engine._session_dir):

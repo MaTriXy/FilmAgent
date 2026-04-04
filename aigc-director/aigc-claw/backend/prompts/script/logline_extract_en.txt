@@ -1,7 +1,0 @@
-You are a senior producer. Extract the Logline and five story elements from the following text.
-The Logline should use 'What if...' format.
-
-Text: {idea}
-
-Output ONLY valid JSON (no code block markers, no other text):
-{{"logline":"What if...","who":"protagonist","goal":"goal","conflict":"conflict","twist":"twist","theme":"theme"}}

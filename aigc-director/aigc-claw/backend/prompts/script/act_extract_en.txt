@@ -1,54 +1,39 @@
-You are a professional script analyst. Read the following Act {act_number} step outline carefully and extract it into a structured JSON format.
+You are a professional script analyst. Please carefully read the following [Full Script Text], and per instructions, extract the entirety of **Episode {act_number}**, reference the [Global Assets], and organize it into standard JSON format.
 
-Step outline:
+---
+
+[Global Assets]
+Character Library:
+{asset_characters}
+
+Setting Library:
+{asset_settings}
+
+---
+
+[Full Script Text]
 {outline}
 
-Output ONLY valid JSON in the following structure (no code block markers, no comments, no other text):
+---
 
+[Important Rules]
 
+1. Extract the entirety of Episode {act_number} from the [Full Script Text].
+2. Provide a one-sentence summary for `episode_title`.
+3. Put the full text of this episode into `episode_content`, preserving all details, dialogue, and actions.
+4. Keep the `scenes` array empty `[]` as scene extraction will be handled in a later stage.
+5. `episode_number` must be {act_number}.
+6. Output ONLY pure JSON. Do NOT generate `characters` and `settings` arrays.
+
+---
+
+[Output Format]
+
+Please strictly output in the following JSON structure (direct pure JSON, no ``` wrappers, no extra text):
 
 {{
-  "characters": [
-    {{
-      "name": "Full name",
-      "character_id": "char_ plus 8 random alphanumeric",
-      "description": "Visual description: hair, eyes, build, clothing details, 50-80 words",
-      "personality": ["trait1", "trait2", "trait3"],
-      "motivation": "Core motivation",
-      "arc_description": "Character growth arc",
-      "role": "protagonist or supporting or background",
-      "age": "age",
-      "species": "human or specific animal"
-    }}
-  ],
-  "settings": [
-    {{
-      "name": "Location name (Indoor) or Location name (Outdoor)",
-      "setting_id": "set_ plus 8 random alphanumeric",
-      "description": "Layout, colors, lighting, atmosphere details, 80-120 words, no people or animals"
-    }}
-  ],
-  "scenes": [
-    {{
-      "scene_number": {scene_start},
-      "act": {act_number},
-      "location": "Must be a name defined in settings",
-      "characters": ["character names matching characters array"],
-      "plot": "Complete detailed scene plot with dialogue, actions and expressions, no word limit"
-    }}
-  ]
+  "episode_number": {act_number},
+  "episode_title": "A one-sentence summary of Episode {act_number}",
+  "episode_content": "The full script text of this episode (containing all details, dialogue)",
+  "scenes": []
 }}
-
-
-
-Important rules:
-1. Character names in scenes must exactly match names in characters array
-2. Scene locations must be names defined in settings array
-3. Setting names must include (Indoor) or (Outdoor)
-4. All scenes' act field must be {act_number}
-5. scene_number starts from {scene_start} and increments
-6. Character descriptions need enough visual detail for AI image generation
-7. Setting descriptions need enough visual detail for AI background generation
-8. No group characters, every character is an individual
-9. Scene 'plot' field must fully express all content, do not truncate
-10. Output ONLY the JSON

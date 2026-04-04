@@ -130,6 +130,15 @@ export default function WorkflowPanel() {
           pollRef.current = null;
           return;
         }
+        if (status.status === 'stopped') {
+          updateStageState(stageId, {
+            status: 'stopped',
+            error: '手动停止',
+            progressMessage: '已停止',
+          });
+          pollRef.current = null;
+          return;
+        }
         // 如果后端状态不再是 running，提前停止轮询（比如变成了 waiting_intervention 或已完成）
         if (status.status !== 'running') {
           pollRef.current = null;
@@ -977,18 +986,19 @@ export default function WorkflowPanel() {
         } catch { /* ignore */ }
       }
 
-      // 如果 current_stage 不在 completedStages 中，也需要显示（可能是 stage_completed、running 或 error 状态）
+      // 如果 current_stage 不在 completedStages 中，也需要显示（可能是 stage_completed、running, stopped, 或 error 状态）
       if (currentStage && !completedStages.includes(currentStage)) {
         const isError = status.status === 'error';
         const isWaiting = status.status === 'waiting_in_stage';
         const isCompleted = status.status === 'stage_completed';
+        const isStopped = status.status === 'stopped';
         
         newStates[currentStage] = {
-          status: isError ? 'error' : (isWaiting ? 'waiting' : (isCompleted ? 'completed' : 'running')),
+          status: isError ? 'error' : (isWaiting ? 'waiting' : (isCompleted ? 'completed' : (isStopped ? 'stopped' : 'running'))),
           progress: 100,
-          progressMessage: isError ? '执行失败' : (isWaiting ? '等待确认' : (isCompleted ? '已完成' : '进行中')),
+          progressMessage: isError ? '执行失败' : (isWaiting ? '等待确认' : (isCompleted ? '已完成' : (isStopped ? '已停止' : '进行中'))),
           artifact: null,
-          error: isError ? (status.error || '执行出错') : null,
+          error: isError ? (status.error || '执行出错') : (isStopped ? '手动停止' : null),
         };
         try {
           const artResult = await getArtifact(sid, currentStage);
@@ -1046,21 +1056,18 @@ export default function WorkflowPanel() {
   };
 
   // ── 删除历史记录 ──
-  const handleDeleteSession = async (sid: string, password: string) => {
-    await deleteSession(sid, password);
+  const handleDeleteSession = async (sid: string) => {
+    await deleteSession(sid);
     setHistory(prev => prev.filter(h => h.id !== sid));
   };
 
   // ── 模型配置变更处理 ──
   const handleModelConfigChange = (config: ModelConfig) => {
     setProjectParams(prev => prev ? { ...prev, ...config } : null);
-    // 同步到后端会话元数据（需要将 boolean 转为 string）
+    // 同步到后端会话元数据
     if (sessionId) {
-      const stringConfig: Record<string, string> = {};
-      for (const [key, value] of Object.entries(config)) {
-        stringConfig[key] = String(value);
-      }
-      updateModels(sessionId, stringConfig).catch(console.error);
+      const payload: Record<string, any> = { ...config };
+      updateModels(sessionId, payload).catch(console.error);
     }
   };
 
@@ -1074,8 +1081,8 @@ export default function WorkflowPanel() {
         video_model: projectParams.video_model,
         video_ratio: projectParams.video_ratio,
         enable_concurrency: projectParams.enable_concurrency || false,
-        web_search: projectParams.web_search || false,
-        expand_idea: projectParams.expand_idea || false,
+        // web_search: projectParams.web_search || false,
+        // expand_idea: projectParams.expand_idea || false,
       }
     : undefined;
 
@@ -1102,6 +1109,7 @@ export default function WorkflowPanel() {
     } else {
       // current_stage 本身：根据 stageStates 判断
       stageStatuses[s] = stageStates[s]?.status || 'pending';
+      if (stageStatuses[s] === 'stopped') stageStatuses[s] = 'stopped';
     }
   }
 
@@ -1117,12 +1125,14 @@ export default function WorkflowPanel() {
   if (hasRunning) computedStatus = 'running';
   else if (hasWaiting) computedStatus = 'waiting_in_stage';
   else if (hasError) computedStatus = 'error';
+  // Check if stopped in stageStates
+  else if (Object.values(stageStates).some(s => s.status === 'stopped')) computedStatus = 'stopped';
   else if (allCompleted && stageStates[STAGE_ORDER[STAGE_ORDER.length - 1]]?.status === 'completed') {
     computedStatus = 'session_completed';
   } else if (allCompleted) {
     computedStatus = 'stage_completed';
   } else {
-    computedStatus = 'idle';
+    computedStatus = Object.values(stageStates).some(s => s.status === 'stopped') ? 'stopped' : 'idle';
   }
 
   const projectStatus = sessionId ? computedStatus : undefined;

@@ -53,10 +53,9 @@ script_generation → character_design → storyboard → reference_generation �
 {
   "session_id": "...",
   "title": "守",
-  "logline": "一句话概括故事",
+  "logline": "详细故事梗概",
   "genre": ["奇幻", "温情"],
   "target_duration": 180,
-  "synopsis": "详细故事梗概",
   "characters": [
     {
       "name": "角色名",

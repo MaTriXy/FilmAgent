@@ -41,9 +41,6 @@ class DeepSeek:
                     "messages": messages,
                     "stream": False
                 }
-                # Add web search if enabled
-                if web_search:
-                    request_params["enable_web_search"] = True
 
                 response = self.client.chat.completions.create(**request_params)
                 

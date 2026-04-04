@@ -42,7 +42,7 @@ class AgentInterface(ABC):
             keys_to_merge = [
                 "style", "video_ratio", "llm_model", "vlm_model", 
                 "image_t2i_model", "image_it2i_model", "video_model",
-                "video_style", "expand_idea"
+                "video_style", "expand_idea", "enable_concurrency"
             ]
             
             merged_data = input_data.copy()
@@ -71,10 +71,11 @@ class AgentInterface(ABC):
         if self.cancellation_check and self.cancellation_check():
             raise RuntimeError(f"Agent [{self.name}] cancelled by user")
 
-    def _cancellable_query(self, llm, prompt: str, **kwargs):
+    def _cancellable_query(self, llm, prompt: str, image_urls=[], model="gemini-3-flash-preview", safe_content=True, task_id=None, web_search=False):
         """在 LLM 调用前后检查取消状态"""
         self._check_cancel()
-        result = llm.query(prompt, **kwargs)
+        # 将位置参数映射给 llm.query
+        result = llm.query(prompt, image_urls, model, safe_content, task_id, web_search)
         self._check_cancel()
         return result
 

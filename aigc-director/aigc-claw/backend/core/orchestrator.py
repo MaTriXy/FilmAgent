@@ -413,7 +413,13 @@ class WorkflowEngine:
             if state.meta:
                 for k, v in state.meta.items():
                     if v is not None:
-                        data[k] = v
+                        # 转换并保持原始类型（尤其是布尔值）
+                        if isinstance(v, str) and v.lower() == 'true':
+                            data[k] = True
+                        elif isinstance(v, str) and v.lower() == 'false':
+                            data[k] = False
+                        else:
+                            data[k] = v
 
         # 原子写入：先写临时文件，再重命名
         dir_path = os.path.dirname(path)

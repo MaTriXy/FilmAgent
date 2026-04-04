@@ -51,14 +51,20 @@ interface ActCompleteData {
   scenes: ScriptScene[];
 }
 
+interface ScriptEpisode {
+  act_number: number;
+  act_title: string;
+  content: string;
+}
+
 interface ScriptData {
   title?: string;
   logline?: string;
   genre?: string[];
-  synopsis?: string;
   characters?: ScriptCharacter[];
   settings?: ScriptSetting[];
   scenes?: ScriptScene[];
+  episodes?: ScriptEpisode[];
   overall_style?: string;
   mood?: string;
   session_id?: string;
@@ -392,14 +398,14 @@ export default function ScriptStage({ state, onConfirm, onIntervene, onRegenerat
             )}
 
             {/* 故事梗概 */}
-            {data.synopsis && (
+            {data.logline && (
               <section>
                 <div className="flex items-center gap-2 mb-3">
                   <BookOpen className="w-4 h-4 text-orange-500" />
                   <h3 className="text-sm font-semibold text-gray-700">故事梗概</h3>
                 </div>
                 <div className="bg-white border border-gray-200 rounded-xl p-5">
-                  <p className="text-sm text-gray-600 leading-relaxed">{data.synopsis}</p>
+                  <p className="text-sm text-gray-600 leading-relaxed">{data.logline}</p>
                 </div>
               </section>
             )}
@@ -456,7 +462,29 @@ export default function ScriptStage({ state, onConfirm, onIntervene, onRegenerat
             )}
 
             {/* 故事线 */}
-            {data.scenes && data.scenes.length > 0 && (
+            {data.episodes && data.episodes.length > 0 ? (
+          <section className="bg-gray-50 p-4 rounded-xl border border-gray-100">
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center gap-2">
+                <Film className="w-5 h-5 text-purple-500" />
+                <h3 className="text-sm font-bold text-gray-800">分集剧本</h3>
+              </div>
+            </div>
+            <div className="space-y-6">
+              {data.episodes.map((ep, i) => (
+                <div key={i} className="bg-white border border-gray-200 rounded-xl overflow-hidden shadow-sm hover:shadow-md transition-shadow">
+                  <div className="bg-gradient-to-r from-purple-50 to-white px-4 py-3 border-b border-purple-100 flex items-center justify-between">
+                    <h4 className="font-bold text-purple-800">第 {ep.act_number || (i + 1)} 集：{ep.act_title}</h4>
+                    <span className="text-[10px] font-bold text-purple-300 bg-purple-50 px-2 py-0.5 rounded uppercase tracking-wider">Episode {ep.act_number || (i + 1)}</span>
+                  </div>
+                  <div className="p-5 text-gray-700 whitespace-pre-wrap leading-relaxed text-[15px]">
+                    {ep.content}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </section>
+        ) : data.scenes && data.scenes.length > 0 && (
               <section>
                 <div className="flex items-center gap-2 mb-3">
                   <Film className="w-4 h-4 text-purple-500" />
@@ -519,13 +547,8 @@ export default function ScriptStage({ state, onConfirm, onIntervene, onRegenerat
                 </label>
               </div>
               <label className="flex flex-col gap-1 text-xs">
-                <span className="text-gray-500 font-medium">Logline</span>
-                <input type="text" value={editData.logline || ''} onChange={e => updateField('logline', e.target.value)}
-                  className="border border-gray-200 rounded-lg px-3 py-2 text-sm text-gray-700 focus:ring-2 focus:ring-blue-500/30 outline-none" />
-              </label>
-              <label className="flex flex-col gap-1 text-xs">
-                <span className="text-gray-500 font-medium">故事梗概</span>
-                <textarea value={editData.synopsis || ''} onChange={e => updateField('synopsis', e.target.value)} rows={3}
+                <span className="text-gray-500 font-medium">Logline (故事大纲)</span>
+                <textarea value={editData.logline || ''} onChange={e => updateField('logline', e.target.value)} rows={4}
                   className="border border-gray-200 rounded-lg px-3 py-2 text-sm text-gray-700 focus:ring-2 focus:ring-blue-500/30 outline-none resize-none" />
               </label>
             </section>

@@ -29,6 +29,9 @@ class Config:
     
     # 临时文件目录
     TEMP_DIR = os.path.join(BASE_DIR, 'temp')
+    
+    # 会话数据目录
+    SESSION_DIR = os.path.join(CODE_DIR, 'data', 'sessions')
 
     # ==========================
     # AI 模型 API 配置
@@ -84,9 +87,11 @@ class Config:
     @classmethod
     def check_dirs(cls):
         """自动创建必要的目录"""
-        for directory in [cls.CODE_DIR, cls.RESULT_DIR, cls.TEMP_DIR]:
+        # 确保 data 和 sessions 目录存在
+        data_dir = os.path.join(cls.CODE_DIR, 'data')
+        for directory in [cls.CODE_DIR, data_dir, cls.SESSION_DIR, cls.RESULT_DIR, cls.TEMP_DIR]:
             if not os.path.exists(directory):
-                os.makedirs(directory)
+                os.makedirs(directory, exist_ok=True)
                 print(f"Created directory: {directory}")
 
 # 初始化目录结构

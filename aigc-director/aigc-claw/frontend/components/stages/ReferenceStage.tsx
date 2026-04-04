@@ -347,8 +347,8 @@ export default function ReferenceStage({ state, sessionId, onConfirm, onInterven
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          shots: scenes.map(s => ({
-            shot_id: s.id,
+          segments: scenes.map(s => ({
+            segment_id: s.id,
             visual_prompt: s.id === sceneId ? newPrompt : s.description
           }))
         })

@@ -47,21 +47,21 @@ export default function StageActions({
   // 是否是"重新生成"阶段（1、3）
   const isRegenStage = STAGES_WITH_NEXT_CHECK.includes(stageId);
 
-  // 重新生成/继续生成按钮：在 waiting / completed / error 状态下显示
-  const showRegen = onRegenerate && (status === 'waiting' || status === 'completed' || status === 'error');
+  // 重新生成/继续生成按钮：在 waiting / completed / error / stopped 状态下显示
+  const showRegen = !!onRegenerate && (status === 'waiting' || status === 'completed' || status === 'error' || status === 'stopped');
+  
+  // 按钮是否禁用逻辑
+  let isButtonDisabled = isRunning;
+  if (!isRunning) {
+    if (isContinueStage && !hasPendingItems && status !== 'error') isButtonDisabled = true;
+    if (isRegenStage && hasNextStageStarted) isButtonDisabled = true;
+  }
 
-  // 判断按钮是否禁用
-  const isButtonDisabled = isRunning || (
-    status !== 'error' && (
-      isContinueStage ? !hasPendingItems : (isRegenStage ? hasNextStageStarted : false)
-    )
-  );
-
-  // 其余按钮在 waiting、running、completed 状态显示
-  const showActions = status === 'waiting' || status === 'running' || status === 'completed';
-  // 保存选项：在 waiting 和 completed 状态下都显示
-  const showSaveSelections = onSaveSelections && (status === 'waiting' || status === 'completed');
-  // "确认并继续"在 showConfirm=true 且 waiting/running/completed 时显示
+  // 其余按钮在 waiting、running、completed、stopped 状态显示
+  const showActions = status === 'waiting' || status === 'running' || status === 'completed' || status === 'stopped';
+  // 保存选项：在 waiting、completed 和 stopped 状态下都显示
+  const showSaveSelections = onSaveSelections && (status === 'waiting' || status === 'completed' || status === 'stopped');
+  // "确认并继续"在 showConfirm=true 且 waiting/running/completed 时显示（stopped 状态不显示确认）
   const showConfirmBtn = showConfirm && (status === 'waiting' || status === 'running' || status === 'completed');
 
   const handleSaveClick = useCallback(async () => {
@@ -79,7 +79,8 @@ export default function StageActions({
   if (!showRegen && !showActions && !showSaveSelections) return null;
 
   return (
-    <div className="border-t border-gray-200 bg-white px-6 py-4 flex items-center justify-between flex-shrink-0">
+    <div className="border-t border-gray-200 bg-white px-6 py-4 flex items-center justify-between gap-3 flex-shrink-0">
+      {/* 左侧：重新生成按钮 */}
       <div>
         {showRegen && (
           <button
@@ -93,6 +94,8 @@ export default function StageActions({
           </button>
         )}
       </div>
+
+      {/* 右侧：操作按钮组 */}
       <div className="flex items-center gap-3">
         {showActions && onEdit && (
           <button
@@ -104,6 +107,7 @@ export default function StageActions({
             修改
           </button>
         )}
+        
         {showActions && onSave && (
           <button
             onClick={onSave}
@@ -111,30 +115,32 @@ export default function StageActions({
             className="flex items-center gap-2 px-4 py-2 bg-white border border-blue-300 text-blue-600 rounded-lg text-sm font-medium hover:bg-blue-50 transition-colors disabled:opacity-50"
           >
             <Save className="w-4 h-4" />
-            保存编辑
+            保存
           </button>
         )}
+
         {showSaveSelections && (
           <button
             onClick={handleSaveClick}
-            disabled={isRunning || saveState !== 'idle'}
-            className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors disabled:opacity-50 ${
-              saveState === 'saved'
-                ? 'bg-green-50 border border-green-300 text-green-600'
-                : 'bg-white border border-indigo-300 text-indigo-600 hover:bg-indigo-50'
-            }`}
+            disabled={saveState !== 'idle' || isRunning}
+            className="flex items-center gap-2 px-4 py-2 bg-white border border-blue-600 text-blue-600 rounded-lg text-sm font-medium hover:bg-blue-50 transition-colors disabled:opacity-50 min-w-[120px] justify-center"
           >
             {saveState === 'saving' ? (
-              <><Loader2 className="w-4 h-4 animate-spin" />正在保存</>           ) : saveState === 'saved' ? (
-              <><Check className="w-4 h-4" />保存成功</>           ) : (
-              <><Save className="w-4 h-4" />保存修改</>           )}
+              <Loader2 className="w-4 h-4 animate-spin" />
+            ) : saveState === 'saved' ? (
+              <Check className="w-4 h-4 text-green-600" />
+            ) : (
+              <Save className="w-4 h-4" />
+            )}
+            {saveState === 'saving' ? '正在保存...' : saveState === 'saved' ? '保存成功' : '保存选择'}
           </button>
         )}
+        
         {showConfirmBtn && (
           <button
             onClick={onConfirm}
             disabled={isRunning}
-            className="flex items-center gap-2 px-5 py-2 bg-green-500 text-white rounded-lg text-sm font-medium hover:bg-green-600 transition-colors disabled:opacity-50"
+            className="flex items-center gap-2 px-6 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:bg-blue-300"
           >
             <CheckCircle className="w-4 h-4" />
             确认并继续
