@@ -777,7 +777,21 @@ async def check_scene_assets(session_id: str, scene_number: int):
     with open(result_file, 'r', encoding='utf-8') as f:
         results = json.load(f)
 
-    storyboard = results.get(session_id, {}).get('storyboard', {})
+    # 如果 results 是列表（旧版或某些 agent 的存储方式），则不能使用 .get(session_id)
+    # 根据 script_agent.py 的实现，final_json 是一个包含 session_id 的字典
+    if isinstance(results, dict):
+        # 兼容两种结构：{session_id: {...}} 或 {...}
+        script_data = results.get(session_id, results) if results.get(session_id) else results
+    else:
+        # 如果是列表，尝试按 session_id 过滤
+        script_data = next((item for item in results if isinstance(item, dict) and item.get("session_id") == session_id), {})
+
+    # 尝试从 script_data 或 state.artifacts 中获取 storyboard
+    storyboard = script_data.get('storyboard', {})
+    if not storyboard:
+        # 兼容旧版本可能直接存储在 results 下的情况
+        storyboard = results.get('storyboard', {}) if isinstance(results, dict) else {}
+    
     shots = storyboard.get('shots', [])
 
     # 筛选该场景的分镜
@@ -785,8 +799,11 @@ async def check_scene_assets(session_id: str, scene_number: int):
     shot_ids = [s.get('shot_id') for s in scene_shots if s.get('shot_id')]
 
     # 检查参考图
-    ref_artifact = results.get(session_id, {}).get('reference_generation', {})
-    ref_scenes = ref_artifact.get('scenes', [])
+    ref_artifact = script_data.get('reference_generation', {})
+    if not ref_artifact:
+        ref_artifact = state.artifacts.get('reference_generation', {})
+    
+    ref_scenes = ref_artifact.get('scenes', []) if isinstance(ref_artifact, dict) else []
     ref_image_count = 0
     for sc in ref_scenes:
         if sc.get('id') in shot_ids:
@@ -799,8 +816,11 @@ async def check_scene_assets(session_id: str, scene_number: int):
                     ref_image_count += 1
 
     # 检查视频
-    video_artifact = results.get(session_id, {}).get('video_generation', {})
-    video_clips = video_artifact.get('clips', [])
+    video_artifact = script_data.get('video_generation', {})
+    if not video_artifact:
+        video_artifact = state.artifacts.get('video_generation', {})
+    
+    video_clips = video_artifact.get('clips', []) if isinstance(video_artifact, dict) else []
     video_count = 0
     for vc in video_clips:
         if vc.get('id') in shot_ids:

@@ -33,7 +33,6 @@
 【输出格式示例（仅返回此 JSON 对象）】
 {{
   "title": "剧本名称",
-  "num_episodes": 4,
   "mood": "影片情绪基调",
   "characters": [
     {{

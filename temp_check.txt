@@ -1,0 +1,20 @@
+﻿            full_script_text = await loop.run_in_executor(None, self._cancellable_query, llm, prompt, [], llm_model, True, sid, web_search)
+            logger.info(f"[ScriptWriter] Full script generated ({len(full_script_text)} chars)")
+            _log_progress(40, "鍘熺鐢熸垚瀹屾垚锛屾鍦ㄦ彁鍙栧厓鏁版嵁...")
+
+            # 2. Extract meta data -> total_episodes, characters, settings
+            meta_prompt = _get_script_prompt("meta_extract", "zh" if is_zh else "en").format(script_text=full_script_text, outline=full_script_text)
+            meta_raw = await loop.run_in_executor(None, self._cancellable_query, llm, meta_prompt, [], llm_model, True, sid, web_search)
+            meta_data = self._extract_json_from_text(meta_raw) or {}
+            
+            all_characters = meta_data.get("characters", [])
+            all_settings = meta_data.get("settings", [])
+            for c in all_characters:
+                c["character_id"] = c.get("character_id") or self._gen_id("char")
+            for s in all_settings:
+                s["setting_id"] = s.get("setting_id") or self._gen_id("set")
+
+            asset_chars_str = json.dumps([{"name": c.get("name"), "description": c.get("description"), "role": c.get("role")} for c in all_characters], ensure_ascii=False)
+            asset_sets_str = json.dumps([{"name": s.get("name"), "description": s.get("description")} for s in all_settings], ensure_ascii=False)
+
+            _log_progress(50, "姝ｅ湪瑙ｆ瀽鍚勯泦鏁版嵁...")

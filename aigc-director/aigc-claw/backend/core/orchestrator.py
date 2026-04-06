@@ -219,10 +219,14 @@ class WorkflowEngine:
 
         try:
             result = await agent.process(input_data, intervention=intervention)
+            if not isinstance(result, dict):
+                logger.error(f"[execute_stage] Agent {stage.value} returned non-dict result: {type(result)}")
+                result = {"payload": result}
+            
             state.artifacts[stage.value] = result.get("payload")
 
-            # 第三阶段修改分镜时：同步更新第四、第五阶段的相关内容
-            if stage.value == "storyboard" and intervention and "modified_storyboard" in intervention:
+            # 只有在 storyboard 阶段明确有修改时才执行同步
+            if stage.value == "storyboard" and isinstance(intervention, dict) and "modified_storyboard" in intervention:
                 modified_shots = intervention["modified_storyboard"]
                 if isinstance(modified_shots, list):
                     shot_durations = {s.get('shot_id'): s.get('duration', 10)

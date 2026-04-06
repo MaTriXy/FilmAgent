@@ -25,7 +25,7 @@ class ScriptWriterAgent(AgentInterface):
         super().__init__(name="ScriptWriter")
 
     @staticmethod
-    def _extract_json_from_text(text: str) -> Optional[dict]:
+    def _extract_json_from_text(text: str) -> Optional[Any]:
         text = text.strip()
         text = re.sub(r'^```(?:json)?\s*', '', text)
         text = re.sub(r'\s*```$', '', text)
@@ -34,8 +34,19 @@ class ScriptWriterAgent(AgentInterface):
             return json.loads(text)
         except json.JSONDecodeError:
             pass
-        start = text.find('{')
-        end = text.rfind('}')
+
+        # 尝试匹配第一个 { 或 [ 到底部对应的 } 或 ]
+        start_obj = text.find('{')
+        start_arr = text.find('[')
+        
+        # 确定起始位置
+        if start_obj == -1 and start_arr == -1:
+            return None
+        
+        start = start_obj if (start_obj != -1 and (start_arr == -1 or start_obj < start_arr)) else start_arr
+        end_char = '}' if start == start_obj else ']'
+        end = text.rfind(end_char)
+
         if start != -1 and end != -1 and end > start:
             try:
                 return json.loads(text[start:end + 1])
@@ -95,13 +106,14 @@ class ScriptWriterAgent(AgentInterface):
             loop = asyncio.get_running_loop()
             full_script_text = await loop.run_in_executor(None, self._cancellable_query, llm, prompt, [], llm_model, True, sid, web_search)
             logger.info(f"[ScriptWriter] Full script generated ({len(full_script_text)} chars)")
-            _log_progress(40, "原稿生成完成，正在提取元数据...")
+            _log_progress(40, "原稿生成完成，正在提取人物/场景信息...")
 
             # 2. Extract meta data -> total_episodes, characters, settings
             meta_prompt = _get_script_prompt("meta_extract", "zh" if is_zh else "en").format(script_text=full_script_text, outline=full_script_text)
             meta_raw = await loop.run_in_executor(None, self._cancellable_query, llm, meta_prompt, [], llm_model, True, sid, web_search)
-            meta_data = self._extract_json_from_text(meta_raw) or {}
-            
+            meta_res = self._extract_json_from_text(meta_raw)
+            meta_data = meta_res if isinstance(meta_res, dict) else {}
+
             all_characters = meta_data.get("characters", [])
             all_settings = meta_data.get("settings", [])
             for c in all_characters:
@@ -112,39 +124,29 @@ class ScriptWriterAgent(AgentInterface):
             asset_chars_str = json.dumps([{"name": c.get("name"), "description": c.get("description"), "role": c.get("role")} for c in all_characters], ensure_ascii=False)
             asset_sets_str = json.dumps([{"name": s.get("name"), "description": s.get("description")} for s in all_settings], ensure_ascii=False)
 
-            _log_progress(50, "正在解析各集数据...")
+            # 3. 解析各集数据 - 针对新版数组输出格式进行优化
+            _log_progress(70, "开始结构化全集数据...")
             
-            total_eps = meta_data.get("total_episodes", 4)
-            if not isinstance(total_eps, int) or total_eps < 1:
-                total_eps = 1
-                
-            async def extract_one_episode(ep_num):
-                self._check_cancel()
-                
-                extract_prompt = _get_script_prompt("act_extract", "zh" if is_zh else "en").format(
-                    act_number=ep_num, scene_start=1, script_text=full_script_text, outline=full_script_text,
-                    asset_characters=asset_chars_str, asset_settings=asset_sets_str
-                )
-                
-                # 并行调用 LLM（使用异步包装）
-                loop = asyncio.get_running_loop()
-                raw_act = await loop.run_in_executor(None, self._cancellable_query, llm, extract_prompt, [], llm_model, True, sid, web_search)
-                parsed_act = self._extract_json_from_text(raw_act) or {}
+            extract_prompt = _get_script_prompt("act_extract", "zh" if is_zh else "en").format(
+                script_text=full_script_text
+            )
+            
+            raw_acts = await loop.run_in_executor(None, self._cancellable_query, llm, extract_prompt, [], llm_model, True, sid, web_search)
+            parsed_acts = self._extract_json_from_text(raw_acts)
+            
+            all_episodes = []
+            if isinstance(parsed_acts, list):
+                for act in parsed_acts:
+                    if isinstance(act, dict):
+                        all_episodes.append({
+                            "episode_number": act.get("episode_number"),
+                            "act_title": act.get("act_title") or f"第{act.get('episode_number')}集",
+                            "content": act.get("content", "")
+                        })
 
-                return ep_num, {
-                    "episode_number": ep_num,
-                    "act_title": parsed_act.get("episode_title") or parsed_act.get("act_title") or f"第{ep_num}集",
-                    "content": parsed_act.get("episode_content") or parsed_act.get("content", "")
-                }
-
-            # 创建并发任务
-            tasks = [extract_one_episode(i) for i in range(1, total_eps + 1)]
-            results = await asyncio.gather(*tasks)
-
-            # 保持原始顺序
-            results.sort(key=lambda x: x[0])
-            all_episodes = [r[1] for r in results]
-
+            if not all_episodes:
+                logger.error(f"[ScriptWriter] Failed to parse episodes from LLM output. Raw: {raw_acts[:200]}...")
+            
             final_json = {
                 "project_id": f"proj_{sid}",
                 "session_id": sid,
