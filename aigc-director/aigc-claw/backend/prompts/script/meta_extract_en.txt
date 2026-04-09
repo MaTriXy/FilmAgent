@@ -1,38 +1,52 @@
-You are a professional script analyst. Below is the complete full script text:
+You are a professional script designer. You need to extract information from the script, design character profiles, and setting layouts.
+
+---
+
+[Script Input]
+
+Below is the complete full script text:
 
 {script_text}
 
-[Design Requirements (Strictly Follow)]:
-1. **Output Format**: Must and only output a pure JSON object. Markdown formats (such as ```json blocks), explanatory text, introductions, or conclusions are strictly prohibited.
-2. **Extraction Object**: Extract all [Characters] and [Settings] that appear in the script with dialogues or key actions. Ignore group/extra characters.
-3. **Character Description**:
-   - Use the "age + gender + hairstyle/jewelry + clothing + body type + facial features/expression" format.
-   - Core Features: Must include hairstyle, body type, clothing color and style, etc.
-   - Prohibition: No sci-fi or fantasy elements; appearance must be normal.
-   - Style: 30-50 words, plain and direct language, no metaphors or literary rhetoric.
-4. **Setting Description**:
-   - Use the "space type + lighting direction and color + core furniture/decor (texture/material) + atmosphere" format.
-   - Style: 30-50 words, concrete and shootable description.
-   - Example: "Modern minimalist office, cold moonlight spills through floor-to-ceiling windows, the desk is cold-toned solid wood, atmosphere is quiet and serious."
+---
+
+[Design Requirements]
+
+Please extract the following information from the [Script Input], specifically focusing on building the [Global Asset Baseline (Core Characters and Main Settings)]. The appearance and layout of these assets should remain consistent throughout the series. Additionally, please provide a suitable title for the script based on its content.
+
+**Note (Strictly Adhere to):**
+1. **Output Format**: You must output ONLY a pure JSON object. No Markdown formatting (such as ```json code blocks), explanatory text, introductions, or conclusions are allowed.
+2. Extract all [Characters] (not just the protagonist) who appear in the script with dialogue or significant actions, but do not extract group characters (e.g., "some employees," "a few customers").
+3. Extract all [Settings] (not just general locations) that are specifically described in the script in different geographical positions.
+4. **Character Description**:
+   - Use a descriptive format: "age + gender + hairstyle/accessories + clothing + body type + facial features/expression."
+   - Core Features: Must include visual characteristics such as hairstyle, body type, clothing color, and style.
+   - Strictly prohibit sci-fi or fantasy elements; the appearance must be realistic.
+   - Style: 30-50 words, plain and direct language; avoid metaphors or literary rhetoric.
+5. **Setting Layout**:
+   - Use a descriptive format: "space type + lighting direction and color + core furnishings (texture/material) + environmental atmosphere."
+   - Example: "Modern minimalist office, cold moonlight spills in from floor-to-ceiling windows, the desk is cold-toned solid wood, and the air feels quiet and serious."
+   - Style: 30-50 words, specific and shootable descriptions.
 
 ---
-[Output Format Example (ONLY return this JSON object)]:
+
+[Output Format Example (ONLY return this JSON object)]
 {{
-  "title": "Story Title",
-  "logline": "One-sentence story outline",
-  "genre": ["genre1", "genre2"],
-  "mood": "Emotional tone",
+  "title": "Script Name",
+  "logline": "One-sentence story summary",
+  "genre": ["Genre 1", "Genre 2"],
+  "mood": "Emotional tone of the film",
   "characters": [
     {{
       "name": "Full name of protagonist/major supporting character",
-      "description": "Appearance description, requirements see [Design Requirements]",
+      "description": "Appearance description, see [Design Requirements]",
       "species": "Human or specific animal species"
     }}
   ],
   "settings": [
     {{
-      "name": "Specific Setting Name",
-      "description": "General setting description, requirements see [Design Requirements]"
+      "name": "Specific location name",
+      "description": "General setting description, see [Design Requirements]"
     }}
   ]
 }}

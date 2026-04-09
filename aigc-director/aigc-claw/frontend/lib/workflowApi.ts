@@ -52,6 +52,7 @@ export async function fetchSessions(): Promise<any[]> {
 
 export async function startProject(params: {
   idea: string;
+  file_path?: string;
   style?: string;
   video_ratio?: string;
   llm_model?: string;

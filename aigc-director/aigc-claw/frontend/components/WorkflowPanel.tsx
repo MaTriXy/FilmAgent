@@ -455,6 +455,7 @@ export default function WorkflowPanel() {
     try {
       const result = await startProject({
         idea: params.idea,
+        file_path: params.file_path, // 修复：将上传的文件路径传给后端
         style: params.style,
         video_ratio: params.video_ratio,
         llm_model: params.llm_model,

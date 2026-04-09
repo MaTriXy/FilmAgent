@@ -1,26 +1,26 @@
-You are a professional script analyst. Your task is to accurately split the continued (sequel) script content into a JSON array based on episode labels (e.g., "Episode {start_episode_num}", etc.).
+You are a professional script analyst. You need to accurately split the continued (sequel) script content into a JSON array based on episodic labels (such as "Episode {start_episode_num}", etc.).
 
 ---
 
-[SCRIPT INPUT]
+[Script Input]
 
 {sequel_script}
 
 ---
 
-[SPLITTING REQUIREMENTS]
+[Splitting Requirements]
 
-1. Please categorize the input script content into the corresponding `episode_number`. This continuation starts from Episode {start_episode_num}.
-2. For `act_title`, please summarize a concise title within 10 words.
-3. For `content`, please include the full original script text of that episode (including scene descriptions, action instructions, and character dialogues).
+1. Group the input script content into the corresponding `episode_number`. This continuation starts from Episode {start_episode_num}.
+2. For `act_title`, summarize a concise title of no more than 20 words.
+3. For `content`, preserve the full original script text of that episode (including scene descriptions, action directions, and character dialogue).
 
-**NOTICE (STRICTLY FOLLOW):**
-1. **Output Format**: You must and only output a pure JSON array. Markdown formats (such as ```json blocks), explanatory text, or closing remarks are strictly prohibited.
+**Note (Strictly Adhere to):**
+1. **Output Format**: You must output ONLY a pure JSON array. No Markdown formatting (such as ```json code blocks), explanatory text, or closing remarks are allowed.
 2. Ensure the JSON structure is complete and valid.
 
 ---
 
-[OUTPUT FORMAT EXAMPLE (ONLY return this JSON array)]
+[Output Format Example (ONLY return this JSON array)]
 [
   {{
     "episode_number": {start_episode_num},

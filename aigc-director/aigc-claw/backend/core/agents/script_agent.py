@@ -312,7 +312,7 @@ class ScriptWriterAgent(AgentInterface):
                 "session_id": sid,
                 "version": 1,
                 "created_at": datetime.now(timezone.utc).isoformat(),
-                "metadata": {
+                "meta": {
                     "generation_model": llm_model,
                     "generation_prompt": idea,
                     "original_text": full_script_text

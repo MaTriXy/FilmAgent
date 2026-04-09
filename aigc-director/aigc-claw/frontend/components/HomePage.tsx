@@ -1,7 +1,7 @@
 ﻿'use client';
 
-import React, { useState } from 'react';
-import { Sparkles, Play, Settings2, Clock, ArrowRight, Zap, CheckCircle, Trash2, X, Lock, Globe, ListOrdered } from 'lucide-react';
+import React, { useState, useRef } from 'react';
+import { Sparkles, Play, Settings2, Clock, ArrowRight, Zap, CheckCircle, Trash2, X, Lock, Globe, ListOrdered, Upload, Loader2 } from 'lucide-react';
 import clsx from 'clsx';
 import { PROMPT_EXAMPLES } from '@/config/examples';
 import { LLM_MODELS, T2I_MODELS, I2I_MODELS, VIDEO_MODELS, VLM_MODELS, STYLES, VIDEO_RATIOS, LLM_PROVIDERS, T2I_PROVIDERS, I2I_PROVIDERS, VIDEO_PROVIDERS, VLM_PROVIDERS, ProviderGroup } from '@/config/models';
@@ -9,6 +9,7 @@ import { STAGES } from './TopBar';
 
 export interface ProjectParams {
   idea: string;
+  file_path?: string; // 上传的文件路径 (由后端返回的文件名)
   style: string;
   video_ratio: string;
   llm_model: string;
@@ -67,6 +68,11 @@ export default function HomePage({ onStartProject, onResumeProject, onDeleteSess
   const [episodes, setEpisodes] = useState(4);
   const [showEpisodesPanel, setShowEpisodesPanel] = useState(false);
 
+  // 上传相关状态
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [uploading, setUploading] = useState(false);
+  const [uploadedFile, setUploadedFile] = useState<{name: string, path: string} | null>(null);
+
   // 管理模式状态
   const [manageMode, setManageMode] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
@@ -88,9 +94,10 @@ export default function HomePage({ onStartProject, onResumeProject, onDeleteSess
   };
 
   const handleStart = (auto?: boolean) => {
-    if (!idea.trim()) return;
+    if (!idea.trim() && !uploadedFile) return;
     onStartProject({
       idea,
+      file_path: uploadedFile?.path, // 如果上传了文件，传给后端
       style: selectedStyle,
       video_ratio: selectedRatio,
       llm_model: selectedLLM,
@@ -106,6 +113,50 @@ export default function HomePage({ onStartProject, onResumeProject, onDeleteSess
 
   const handleExampleClick = (text: string) => {
     setIdea(text);
+  };
+
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const allowedExtensions = ['.doc', '.docx', '.txt', '.md', '.pdf'];
+    const extension = file.name.substring(file.name.lastIndexOf('.')).toLowerCase();
+    
+    if (!allowedExtensions.includes(extension)) {
+      alert(`仅支持 ${allowedExtensions.join(', ')} 格式的文件`);
+      return;
+    }
+
+    setUploading(true);
+    const formData = new FormData();
+    formData.append('file', file);
+
+    try {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:8000'}/api/upload_file`, {
+        method: 'POST',
+        body: formData,
+      });
+
+      if (!response.ok) {
+        throw new Error('文件上传失败');
+      }
+
+      const data = await response.json();
+      if (data.file_path) {
+        // 记录已上传的文件信息，不修改输入框
+        setUploadedFile({
+          name: file.name,
+          path: data.file_path
+        });
+      }
+    } catch (error) {
+      console.error('上传错误:', error);
+      alert('上传提取内容失败，请重试');
+    } finally {
+      setUploading(false);
+      // 清空 input 方便下次选择同一文件
+      if (fileInputRef.current) fileInputRef.current.value = '';
+    }
   };
 
   return (
@@ -131,7 +182,7 @@ export default function HomePage({ onStartProject, onResumeProject, onDeleteSess
             placeholder="描述你的视频创意... 例如：一只叫Luna的猫意外进入太空站，遇到一个孤独的宇航员"
             className="w-full bg-transparent text-sm text-gray-800 placeholder-gray-400 resize-none outline-none min-h-[100px]"
             onKeyDown={e => {
-              if (e.key === 'Enter' && !e.shiftKey && idea.trim()) {
+              if (e.key === 'Enter' && !e.shiftKey && (idea.trim() || uploadedFile)) {
                 e.preventDefault();
                 handleStart(false);
               }
@@ -232,12 +283,53 @@ export default function HomePage({ onStartProject, onResumeProject, onDeleteSess
               </button>
             </div>
             <div className="flex items-center gap-2">
+              {/* 隐藏的文件输入框 */}
+              <input
+                type="file"
+                ref={fileInputRef}
+                onChange={handleFileUpload}
+                accept=".doc,.docx,.txt,.md,.pdf"
+                className="hidden"
+              />
+              <button
+                onClick={() => {
+                  if (uploadedFile) {
+                    setUploadedFile(null); // 已有文件则点击取消
+                  } else {
+                    fileInputRef.current?.click();
+                  }
+                }}
+                disabled={uploading}
+                className={clsx(
+                  'flex items-center gap-2 px-5 py-2 rounded-xl text-sm font-medium transition-colors border shadow-sm relative',
+                  uploading
+                    ? 'bg-gray-50 text-gray-400 cursor-not-allowed border-gray-100'
+                    : uploadedFile
+                    ? 'bg-blue-50 text-blue-600 border-blue-100 hover:bg-blue-100'
+                    : 'bg-white text-gray-600 hover:bg-gray-50 border-gray-200'
+                )}
+                title={uploadedFile ? `已选择: ${uploadedFile.name} (点击取消)` : "上传文档 (Word/TXT/MD)"}
+              >
+                {uploading ? (
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                ) : uploadedFile ? (
+                  <CheckCircle className="w-4 h-4" />
+                ) : (
+                  <Upload className="w-4 h-4" />
+                )}
+                {uploading ? '上传中...' : uploadedFile ? `已选: ${uploadedFile.name.length > 8 ? uploadedFile.name.substring(0, 8) + '...' : uploadedFile.name}` : '上传文件'}
+                {uploadedFile && (
+                  <div className="absolute -top-1 -right-1 bg-red-500 text-white rounded-full p-0.5">
+                    <X className="w-2.5 h-2.5" />
+                  </div>
+                )}
+              </button>
               <button
                 onClick={() => handleStart(false)}
-                disabled={!idea.trim()}
+                disabled={!idea.trim() && !uploadedFile}
                 className={clsx(
                   'flex items-center gap-2 px-5 py-2 rounded-xl text-sm font-medium transition-colors',
-                  idea.trim()
+                  (idea.trim() || uploadedFile)
                     ? 'bg-blue-500 text-white hover:bg-blue-600 shadow-sm'
                     : 'bg-gray-100 text-gray-400 cursor-not-allowed'
                 )}
@@ -247,10 +339,10 @@ export default function HomePage({ onStartProject, onResumeProject, onDeleteSess
               </button>
               <button
                 onClick={() => handleStart(true)}
-                disabled={!idea.trim()}
+                disabled={!idea.trim() && !uploadedFile}
                 className={clsx(
                   'flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium transition-colors',
-                  idea.trim()
+                  (idea.trim() || uploadedFile)
                     ? 'bg-amber-500 text-white hover:bg-amber-600 shadow-sm'
                     : 'bg-gray-100 text-gray-400 cursor-not-allowed'
                 )}

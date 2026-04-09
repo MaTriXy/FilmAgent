@@ -607,7 +607,7 @@ class WorkflowEngine:
             data["error"] = state.error
             data["updated_at"] = state.updated_at.timestamp() if isinstance(state.updated_at, datetime) else time.time()
             
-            # 保存元数据
+            # 保存元数据（将 meta 中的键展开到根目录下）
             if state.meta:
                 for k, v in state.meta.items():
                     if v is not None:

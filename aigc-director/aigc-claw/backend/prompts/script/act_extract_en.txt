@@ -1,39 +1,35 @@
-You are a professional script analyst. Please carefully read the following [Full Script Text], and per instructions, extract the entirety of **Episode {act_number}**, reference the [Global Assets], and organize it into standard JSON format.
+You are a professional script analyst. You need to accurately split the entire content of the script into an array format based on episodic labels (such as "Episode 1", "Episode 2", etc.).
 
 ---
 
-[Global Assets]
-Character Library:
-{asset_characters}
+[Script Input]
 
-Setting Library:
-{asset_settings}
+{script_text}
 
 ---
 
-[Full Script Text]
-{outline}
+[Splitting Requirements]
+
+1. Group the script content into the corresponding `episode_number`.
+2. For `act_title`, summarize a concise and engaging title of no more than 10 words based on the story of the episode.
+3. For `content`, preserve the full script text of the episode (including scene descriptions, action directions, and character dialogue).
+
+**Note (Strictly Adhere to):**
+1. **Output Format**: You must output ONLY a pure JSON array. No Markdown formatting (such as ```json code blocks), explanatory text, analysis, or closing remarks are allowed.
+2. Ensure the JSON structure is complete and valid.
 
 ---
 
-[Important Rules]
-
-1. Extract the entirety of Episode {act_number} from the [Full Script Text].
-2. Provide a one-sentence summary for `episode_title`.
-3. Put the full text of this episode into `episode_content`, preserving all details, dialogue, and actions.
-4. Keep the `scenes` array empty `[]` as scene extraction will be handled in a later stage.
-5. `episode_number` must be {act_number}.
-6. Output ONLY pure JSON. Do NOT generate `characters` and `settings` arrays.
-
----
-
-[Output Format]
-
-Please strictly output in the following JSON structure (direct pure JSON, no ``` wrappers, no extra text):
-
-{{
-  "episode_number": {act_number},
-  "episode_title": "A one-sentence summary of Episode {act_number}",
-  "episode_content": "The full script text of this episode (containing all details, dialogue)",
-  "scenes": []
-}}
+[Output Format Example (Return only this JSON array)]
+[
+  {{
+    "episode_number": 1,
+    "act_title": "Episode Title",
+    "content": "Detailed script content..."
+  }},
+  {{
+    "episode_number": 2,
+    "act_title": "Episode Title",
+    "content": "Detailed script content..."
+  }}
+]

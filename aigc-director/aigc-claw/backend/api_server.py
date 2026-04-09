@@ -53,17 +53,19 @@ def setup_concurrent_logging():
 _log_listener = setup_concurrent_logging()
 logger = logging.getLogger("api_server")
 # =================================
-from fastapi import FastAPI, Request, HTTPException
+from fastapi import FastAPI, Request, HTTPException, UploadFile, File
 from fastapi.responses import StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from typing import Any, Optional, Dict, List
+import shutil
 
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
 from config import settings
 from core.orchestrator import WorkflowEngine, WorkflowStage
+from tool.file_reader import FileReader
 
 app = FastAPI(title="AI导演工作室", version="2.0.0")
 workflow_engine = WorkflowEngine()
@@ -84,6 +86,7 @@ app.mount("/code", StaticFiles(directory=settings.CODE_DIR), name="code")
 
 class ProjectStartRequest(BaseModel):
     idea: str
+    file_path: Optional[str] = None  # 用户上传的文件路径
     style: Optional[str] = "anime"
     video_ratio: Optional[str] = "16:9"
     expand_idea: Optional[bool] = True  # 默认启用创意扩写
@@ -109,8 +112,56 @@ async def health_check():
     return {"status": "ok", "timestamp": time.time()}
 
 
+@app.post("/api/upload_file")
+async def upload_file(file: UploadFile = File(...)):
+    """
+    接收用户上传的文件 (.docx, .doc, .txt, .md, .pdf)，将其保存到 temp 目录。
+    返回保存的相对路径给前端。
+    """
+    allowed_exts = [".docx", ".doc", ".txt", ".md", ".pdf"]
+    filename = file.filename
+    ext = os.path.splitext(filename)[1].lower()
+    if ext not in allowed_exts:
+        raise HTTPException(status_code=400, detail=f"仅支持 {', '.join(allowed_exts)} 格式的文件")
+
+    # 1. 确保临时目录存在
+    os.makedirs(settings.TEMP_DIR, exist_ok=True)
+    
+    # 2. 生成唯一文件名并保存
+    safe_filename = f"{int(time.time())}_{filename}"
+    file_path = os.path.join(settings.TEMP_DIR, safe_filename)
+    try:
+        with open(file_path, "wb") as buffer:
+            shutil.copyfileobj(file.file, buffer)
+    except Exception as e:
+        logger.error(f"保存上传文件失败: {e}")
+        raise HTTPException(status_code=500, detail=f"文件保存失败: {str(e)}")
+
+    return {
+        "filename": filename,
+        "file_path": safe_filename  # 只返回文件名部分，相对于 TEMP_DIR
+    }
+
+
 @app.post("/api/project/start")
 async def start_project(req: ProjectStartRequest):
+    # 处理上传的文件
+    final_idea = req.idea
+    if req.file_path:
+        # file_path 是储存在 settings.TEMP_DIR 下的文件名
+        full_path = os.path.join(settings.TEMP_DIR, req.file_path)
+        if os.path.exists(full_path):
+            content = FileReader.extract_text(full_path)
+            if content:
+                # 提取原始文件名 (去掉时间戳前缀)
+                original_filename = "_".join(req.file_path.split("_")[1:])
+                prompt_fragment = FileReader.format_as_prompt(original_filename, content)
+                # 静默拼接到 idea 中
+                final_idea = f"{final_idea}\n\n{prompt_fragment}"
+            logger.info(f"成功处理上传文件: {full_path}")
+        else:
+            logger.warning(f"上传的文件未找到: {full_path}")
+
     session_id = str(int(time.time() * 1000))
     state = workflow_engine.get_or_create_state(session_id)
     state.started_at = __import__('datetime').datetime.now()
@@ -120,8 +171,9 @@ async def start_project(req: ProjectStartRequest):
 
     # 保存会话元数据（未传参数时使用 config.py 中的默认值）
     meta = {
-        "idea": req.idea,
-        "style": req.style or "anime",
+        "idea": final_idea,
+        "user_textbox_input": req.idea, # 保留原始的用户输入，用于前端展示
+        "style": req.style or "realistic",
         "video_ratio": req.video_ratio or "16:9",
         "expand_idea": req.expand_idea if req.expand_idea is not None else True,
         "llm_model": req.llm_model or settings.LLM_MODEL,
@@ -140,7 +192,8 @@ async def start_project(req: ProjectStartRequest):
         "session_id": session_id,
         "status": state.status,
         "params": {
-            "idea": req.idea,
+            "idea": final_idea,
+            "file_path": req.file_path,
             "style": req.style,
             "llm_model": req.llm_model,
             "vlm_model": req.vlm_model,
@@ -203,8 +256,10 @@ async def execute_stage(session_id: str, stage: str, request: Request):
     # 注入会话级元数据（模型配置等），确保模型参数始终可用
     if state.meta:
         for k, v in state.meta.items():
-            if v is not None and k not in body:  # 区分 None 和 False
-                body[k] = v
+            # 即使 body[k] 存在但为空字符串（如 idea），也应该使用 meta 中的完整内容
+            if v is not None:
+                if k not in body or not body[k]:
+                    body[k] = v
 
     # 从已持久化的 artifacts 中注入用户选项（selected_images / selected_clips）
     _inject_user_selections(state, stage, body)
