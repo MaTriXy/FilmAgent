@@ -119,15 +119,20 @@ class VideoEditorAgent(AgentInterface):
                         f.write(f"file '{abs_p}'\n")
 
                 cmd = [
-                    ffmpeg_exe, '-f', 'concat', '-safe', '0',
+                    ffmpeg_exe, '-y', '-f', 'concat', '-safe', '0',
                     '-i', list_file, 
                     '-c:v', 'libx264', '-preset', 'fast', '-crf', '22',
                     '-c:a', 'aac', '-pix_fmt', 'yuv420p',
-                    '-movflags', '+faststart', '-y', output
+                    '-movflags', '+faststart', output
                 ]
                 
-                logger.info(f"[{sid}] Running ffmpeg for Ep {ep_idx}: {' '.join(cmd)}")
-                subprocess.run(cmd, capture_output=True, text=True, check=True)
+                logger.info(f"[{sid}] Running ffmpeg for Ep {ep_idx}: {cmd}")
+                try:
+                    result = subprocess.run(cmd, capture_output=True, text=True, check=True)
+                except subprocess.CalledProcessError as e:
+                    logger.error(f"FFmpeg failed with exit code {e.returncode}")
+                    logger.error(f"FFmpeg stderr: {e.stderr}")
+                    raise Exception(f"视频拼接失败: {e.stderr}")
                 
                 ep_title = ep_title_map.get(ep_idx, f"第 {ep_idx} 集")
                 final_videos.append({
