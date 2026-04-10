@@ -87,8 +87,8 @@ app.mount("/code", StaticFiles(directory=settings.CODE_DIR), name="code")
 class ProjectStartRequest(BaseModel):
     idea: str
     file_path: Optional[str] = None  # 用户上传的文件路径
-    style: Optional[str] = "anime"
-    video_ratio: Optional[str] = "16:9"
+    style: Optional[str] = "realistic"
+    video_ratio: Optional[str] = "9:16"
     expand_idea: Optional[bool] = True  # 默认启用创意扩写
     llm_model: Optional[str] = None
     vlm_model: Optional[str] = None
@@ -175,7 +175,7 @@ async def start_project(req: ProjectStartRequest):
         "idea": final_idea,
         "user_textbox_input": req.idea, # 保留原始的用户输入，用于前端展示
         "style": req.style or "realistic",
-        "video_ratio": req.video_ratio or "16:9",
+        "video_ratio": req.video_ratio or "9:16",
         "expand_idea": req.expand_idea if req.expand_idea is not None else True,
         "llm_model": req.llm_model or settings.LLM_MODEL,
         "vlm_model": req.vlm_model or settings.VLM_MODEL,
@@ -199,6 +199,7 @@ async def start_project(req: ProjectStartRequest):
             "llm_model": req.llm_model,
             "vlm_model": req.vlm_model,
             "episodes": req.episodes,
+            "video_ratio": req.video_ratio,
         }
     }
 
