@@ -3,7 +3,7 @@
 阶段5: 视频生成智能体 (适配 Session JSON 格式)
 - 从 session.json 的 artifacts["storyboard"] 读取拍摄片段(Segments)
 - 视频提示词：风格前缀 + 分镜列表(分镜1: [时长] content...)
-- 参考图：从 session.json 的 artifacts["reference_generation"] 或 scene2image 读取
+- 参考图：从 session.json 的 artifacts["reference_generation"] 读取
 - 支持逐项并发生成、实时预览、重新生成
 """
 

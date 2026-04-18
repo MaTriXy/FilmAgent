@@ -119,7 +119,7 @@ class ReferenceGeneratorAgent(AgentInterface):
         return refs[:10]
 
     def _get_descriptions(self, segment: dict, char_id_map: dict, setting_id_map: dict,
-                          script_json: dict) -> tuple:
+                          character_json: dict) -> tuple:
         """获取片段中涉及的角色和场景描述
 
         Returns:
@@ -130,13 +130,10 @@ class ReferenceGeneratorAgent(AgentInterface):
         for cn in segment.get('characters', []):
             cid = char_id_map.get(cn, '')
             if cid:
-                for c in script_json.get('characters', []):
-                    if c.get('character_id') == cid:
+                for c in character_json.get('characters', []):
+                    if c.get('id') == cid:
                         desc = c.get('description', '')
-                        visual = c.get('visual_description', '')
-                        if visual:
-                            char_descs.append(f"{cn}: {visual}")
-                        elif desc:
+                        if desc:
                             char_descs.append(f"{cn}: {desc}")
                         break
 
@@ -145,9 +142,9 @@ class ReferenceGeneratorAgent(AgentInterface):
         set_id = setting_id_map.get(loc)
         setting_desc = ""
         if set_id:
-            for s in script_json.get('settings', []):
-                if s.get('setting_id') == set_id:
-                    setting_desc = s.get('description', '') or s.get('visual_description', '')
+            for s in character_json.get('settings', []):
+                if s.get('id') == set_id:
+                    setting_desc = s.get('description', '')
                     break
 
         return "； ".join(char_descs), setting_desc
@@ -156,25 +153,40 @@ class ReferenceGeneratorAgent(AgentInterface):
 
     # ─── 预览构建 ───
 
-    def _build_preview(self, sid: str, segments: list) -> list:
+    def _build_preview(self, sid: str, segments: list, session_data: dict = None) -> list:
         """构建片段预览列表（含当前状态）"""
         preview = []
+
+        # 建立 scene_id 到 selected 路径的映射
+        selected_map = {}
+        if session_data and "artifacts" in session_data:
+            ref_gen = session_data["artifacts"].get("reference_generation", {})
+            for scene in ref_gen.get("scenes", []):
+                sid_in_json = scene.get("id")
+                if sid_in_json:
+                    selected_map[sid_in_json] = scene.get("selected", "")
+
         for idx, seg in enumerate(segments, 1):
             segment_id = seg.get('segment_id', f'seg_unk_{idx}')
             versions = self._list_versions(sid, segment_id)
-            
-            # 将该段下所有镜头组合为简要说明
-            shots_summary = " ".join([s.get('content', '') for s in seg.get('shots', [])])
+
+            # 优先从 artifacts 中读取 selected 字段，如果没有则回退到最后一个版本
+            selected_path = selected_map.get(segment_id)
+            if not selected_path:
+                selected_path = versions[-1] if versions else ""
+
+            # 获取该段下第一个镜头的 content 作为片段描述
+            plot = seg.get('shots', [])[0].get('content', '') if seg.get('shots') else ""
             ep_n = seg.get('episode_number', 1)
             seg_n = seg.get('segment_number', idx)
-            
+
             preview.append({
                 "id": segment_id,
                 "name": f"第{ep_n}集-片段{seg_n}",
                 "episode": ep_n,
                 "index": seg_n,
-                "description": shots_summary[:50] + '...' if len(shots_summary) > 50 else shots_summary,
-                "selected": versions[-1] if versions else "",
+                "description": plot,
+                "selected": selected_path,
                 "versions": versions,
                 "status": "done" if versions else "pending",
             })
@@ -194,9 +206,9 @@ class ReferenceGeneratorAgent(AgentInterface):
         使用 VLM 选择最好的一张作为最终参考图。
         """
         segment_id = segment.get('segment_id', '')
-        
-        # 拼接剧情描述（评估时用）
-        plot = " ".join([s.get('content', '') for s in segment.get('shots', [])])
+
+        # 仅提取第一个镜头的描述作为当前 Plot
+        plot = segment.get('shots', [])[0].get('content', '') if segment.get('shots') else ""
         visual_prompt = first_frame_prompt
 
         # 取消时直接跳过，不抛异常，以保留已生成的部分结果
@@ -385,14 +397,30 @@ class ReferenceGeneratorAgent(AgentInterface):
 
     # ─── 构建最终 payload ───
 
-    def _build_payload(self, sid: str, segments: list) -> dict:
+    def _build_payload(self, sid: str, segments: list, session_data: dict = None) -> dict:
         """构建最终 payload"""
         scenes = []
+
+        # 建立 scene_id 到 selected 路径的映射
+        selected_map = {}
+        if session_data and "artifacts" in session_data:
+            ref_gen = session_data["artifacts"].get("reference_generation", {})
+            for scene in ref_gen.get("scenes", []):
+                sid_in_json = scene.get("id")
+                if sid_in_json:
+                    selected_map[sid_in_json] = scene.get("selected", "")
+
         for idx, seg in enumerate(segments, 1):
             segment_id = seg.get('segment_id', f'seg_unk_{idx}')
             versions = self._list_versions(sid, segment_id)
             
-            shots_summary = " ".join([s.get('content', '') for s in seg.get('shots', [])])
+            # 优先从 artifacts 中读取 selected 字段
+            selected_path = selected_map.get(segment_id)
+            if not selected_path:
+                selected_path = versions[-1] if versions else ""
+
+            # 获取该段下第一个镜头的 content 作为片段描述
+            shots_summary = seg.get('shots', [])[0].get('content', '') if seg.get('shots') else ""
 
             # status: 有图片=done, 无图片=pending(待生成)
             status = "done" if versions else "pending"
@@ -400,8 +428,8 @@ class ReferenceGeneratorAgent(AgentInterface):
                 "id": segment_id,
                 "name": f"第{seg.get('episode_number', 1)}集-片段{seg.get('segment_number', idx)}",
                 "index": idx,
-                "description": shots_summary[:50] + '...' if len(shots_summary) > 50 else shots_summary,
-                "selected": versions[-1] if versions else "",
+                "description": shots_summary,
+                "selected": selected_path,
                 "versions": versions,
                 "status": status,
             })
@@ -412,48 +440,6 @@ class ReferenceGeneratorAgent(AgentInterface):
             },
             "stage_completed": True,
         }
-
-    def _update_scene2image(self, sid: str, segments: list, result_file: str,
-                            first_frame_prompts: dict, selected_images: dict = None) -> None:
-        """写回 scene2image 到结果文件
-        scene2image[segment_id] = {
-            local_path: 当前最新版本图片路径,
-            prompt: 首帧图像提示词(阶段4生成),
-            plot: 原始分段剧情描述(阶段3拼接，供阶段5视频使用),
-            video_prompt: 原始分段视觉描述提示词(等同首帧提示词),
-            duration: 分段总时长,
-        }
-        """
-        if selected_images is None:
-            selected_images = {}
-            
-        with open(result_file, 'r', encoding='utf-8') as f:
-            res = json.load(f)
-        scene_images = res.get(str(sid), {}).get('scene2image', {})
-        for seg in segments:
-            segment_id = seg.get('segment_id', '')
-            if not segment_id: continue
-
-            # 优先使用实时传入的选定路径，否则寻找磁盘已有版本
-            selected = selected_images.get(segment_id)
-            if not selected:
-                versions = self._list_versions(sid, segment_id)
-                if versions:
-                    selected = versions[-1]
-            
-            if selected:
-                plot = " ".join([s.get('content', '') for s in seg.get('shots', [])])
-                scene_images[segment_id] = {
-                    "local_path": selected,
-                    "prompt": first_frame_prompts.get(segment_id, plot[:50]),
-                    "plot": plot,
-                    "video_prompt": first_frame_prompts.get(segment_id, plot[:50]),
-                    "duration": seg.get('total_duration', 10),
-                }
-        res[str(sid)] = res.get(str(sid), {})
-        res[str(sid)]['scene2image'] = scene_images
-        with open(result_file, 'w', encoding='utf-8') as f:
-            json.dump(res, f, indent=4, ensure_ascii=False)
 
     # ─── 核心流程 ───
 
@@ -520,6 +506,7 @@ class ReferenceGeneratorAgent(AgentInterface):
         logger.info(f"[ReferenceAgent] 解析到 {len(segments)} 个拍摄片段")
 
         script_json = artifacts.get('script_generation', {})
+        character_json = artifacts.get('character_design', {})
         result_file = os.path.join('code/data/sessions', f'{sid}.json')
 
         # 判断中英文
@@ -527,11 +514,11 @@ class ReferenceGeneratorAgent(AgentInterface):
 
         # 构建 name → id 映射（用于素材匹配）
         char_id_map = {}
-        for c in script_json.get('characters', []):
+        for c in character_json.get('characters', []):
             char_id_map[c['name']] = c.get('character_id', '')
 
         setting_id_map = {}
-        for s in script_json.get('settings', []):
+        for s in character_json.get('settings', []):
             setting_id_map[s['name']] = s.get('setting_id', '')
 
         asset_map = self._build_asset_map(sid)
@@ -576,13 +563,16 @@ class ReferenceGeneratorAgent(AgentInterface):
                     for i, segment_id in enumerate(regen_scenes):
                         seg = fresh_segment_map.get(segment_id, {})
                         
-                        plot = " ".join([s.get('content', '') for s in seg.get('shots', [])])
-                        char_desc, set_desc = self._get_descriptions(seg, char_id_map, setting_id_map, script_json)
+                        # 提取第一个分镜的剧情供首帧提示词使用（视频首帧应基于片段起点）
+                        first_shot = seg.get('shots', [])[0] if seg.get('shots') else {}
+                        plot = first_shot.get('content', '')
+                        char_desc, set_desc = self._get_descriptions(seg, char_id_map, setting_id_map, character_json)
 
                         ff_prompt_tpl = load_prompt('reference', 'first_frame', 'zh' if is_zh else 'en')
                         ff_prompt_resp = self._cancellable_query(
                             llm,
                             prompt=ff_prompt_tpl.format(
+                                original_text=script_json.get("original_text", ""),
                                 plot=plot,
                                 character_description=char_desc,
                                 setting_description=set_desc
@@ -595,7 +585,7 @@ class ReferenceGeneratorAgent(AgentInterface):
                             ff_prompt = str(ff_prompt_resp).strip()
                         prompt_map[segment_id] = ff_prompt
                         
-                        logger.info(f"[{segment_id}] first-frame prompt: {ff_prompt[:80]}...")
+                        logger.info(f"[{segment_id}] first-frame prompt: {ff_prompt}...")
                         self._report_progress("参考图", f"准备提示词: {segment_id}", calc_pct_regen(i * steps_per_segment + 1))
 
                     # 并发生成图像
@@ -606,7 +596,7 @@ class ReferenceGeneratorAgent(AgentInterface):
                             seg = fresh_segment_map.get(segment_id, {})
                             refs = self._collect_refs(seg, asset_map, char_id_map, setting_id_map)
                             char_desc, set_desc = self._get_descriptions(
-                                seg, char_id_map, setting_id_map, script_json
+                                seg, char_id_map, setting_id_map, character_json
                             )
                             fut = executor.submit(
                                 self._generate_one, img_client, sid,
@@ -655,17 +645,14 @@ class ReferenceGeneratorAgent(AgentInterface):
                 loop = asyncio.get_running_loop()
                 await loop.run_in_executor(None, regen_run)
 
-                # 重新生成后更新 scene2image（同步最新版本信息）
-                self._update_scene2image(sid, fresh_segments, result_file, prompt_map, selected_images)
-
                 self._report_progress("参考图", "完成", 100)
-                return self._build_payload(sid, fresh_segments)
+                return self._build_payload(sid, fresh_segments, session_data)
 
         # ═══ 正常流程：全量生成 ═══
         self._report_progress("参考图", "加载分镜数据...", 5)
 
         # 发送预览列表
-        preview = self._build_preview(sid, segments)
+        preview = self._build_preview(sid, segments, session_data)
         self._report_progress("参考图", "加载分镜列表", 8, data={"assets_preview": {"scenes": preview}})
 
         llm = LLM()
@@ -708,15 +695,17 @@ class ReferenceGeneratorAgent(AgentInterface):
                 for i, seg in enumerate(pending_segments):
                     segment_id = seg['segment_id']
                     
-                    # 1. 准备该片段的视觉提示词
-                    plot = " ".join([s.get('content', '') for s in seg.get('shots', [])])
-                    char_desc, set_desc = self._get_descriptions(seg, char_id_map, setting_id_map, script_json)
+                    # 1. 准备该片段的视觉提示词（基于片段的第一个分镜）
+                    first_shot = seg.get('shots', [])[0] if seg.get('shots') else {}
+                    plot = first_shot.get('content', '')
+                    char_desc, set_desc = self._get_descriptions(seg, char_id_map, setting_id_map, character_json)
                     ff_prompt_tpl = load_prompt('reference', "first_frame", 'zh' if is_zh else 'en')
                     
                     try:
                         ff_prompt_resp = self._cancellable_query(
                             llm,
                             prompt=ff_prompt_tpl.format(
+                                original_text=script_json.get("original_text", ""),
                                 plot=plot,
                                 character_description=char_desc,
                                 setting_description=set_desc
@@ -744,6 +733,7 @@ class ReferenceGeneratorAgent(AgentInterface):
 
                     # 3. 立即提交图像生成任务，不再等待其他片段的提示词
                     refs = self._collect_refs(seg, asset_map, char_id_map, setting_id_map)
+                    char_desc, set_desc = self._get_descriptions(seg, char_id_map, setting_id_map, character_json)
                     fut = executor.submit(
                         self._generate_one, img_client, sid,
                         seg, ff_prompt, refs,
@@ -803,9 +793,6 @@ class ReferenceGeneratorAgent(AgentInterface):
             else:
                 self._report_progress("参考图", "保存结果...", 96)
 
-            # 写回结果文件
-            self._update_scene2image(sid, segments, result_file, first_frame_prompts, selected_images)
-
         loop = asyncio.get_running_loop()
         try:
             await loop.run_in_executor(None, run)
@@ -813,8 +800,8 @@ class ReferenceGeneratorAgent(AgentInterface):
             if "cancel" in str(e).lower():
                 logger.info("ReferenceGeneratorAgent: 用户取消，返回已完成部分结果")
                 self._report_progress("参考图", "已取消（保留已完成图片）", 100)
-                return self._build_payload(sid, segments)
+                return self._build_payload(sid, segments, session_data)
             raise
 
         self._report_progress("参考图", "完成", 100)
-        return self._build_payload(sid, segments)
+        return self._build_payload(sid, segments, session_data)
