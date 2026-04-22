@@ -70,14 +70,26 @@ class WanVideoClient:
 
         logger.info(f"WanVideoClient: model={model}, prompt={prompt[:60]}...")
 
-        rsp = VideoSynthesis.call(
-            api_key=self.api_key,
-            model=model,
-            prompt=prompt,
-            img_url=img_url,
-            duration=duration,
-            shot_type=shot_type,
-        )
+        if model.startswith("wan2.7"):
+            # wan2.7 series use the new API format with 'media'
+            media = [{"type": "first_frame", "url": img_url}]
+            rsp = VideoSynthesis.call(
+                api_key=self.api_key,
+                model=model,
+                prompt=prompt,
+                media=media,
+                duration=duration,
+            )
+        else:
+            # Older models (wan2.1, wan2.6 etc.) use 'img_url' and 'shot_type'
+            rsp = VideoSynthesis.call(
+                api_key=self.api_key,
+                model=model,
+                prompt=prompt,
+                img_url=img_url,
+                duration=duration,
+                shot_type=shot_type,
+            )
 
         if rsp.status_code != HTTPStatus.OK:
             raise RuntimeError(
@@ -111,21 +123,61 @@ class WanVideoClient:
 
 if __name__ == "__main__":
     import sys
+    import time
     sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
     from config import Config
 
+    logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
+
+    # ── 测试参数（按需修改） ──
+    IMAGE_PATH = "code/result/image/test_avail/test_input.png"
+    OUTPUT_PATH = "code/result/video/test_avail/wan_test_output.mp4"
+    PROMPT = "一个赛博朋克风格的城市，霓虹灯闪烁，下着雨"
+    MODEL = "wan2.7-i2v"  # wan2.1-i2v-720p / wan2.1-i2v-480p
+    DURATION = 5               # 5 / 10
+    SHOT_TYPE = "multi"        # single / multi
+
     print("=== 万象 (Wan) 视频客户端可用性测试 ===")
-    api_key = Config.DASHSCOPE_API_KEY
+    ak = Config.DASHSCOPE_API_KEY
     base_url = Config.DASHSCOPE_BASE_URL
-    if not api_key:
-        print("✗ DASHSCOPE_API_KEY 未设置，跳过")
+    if not ak:
+        print("✗ DASHSCOPE_API_KEY 未设置，请检查 .env 配置")
         sys.exit(1)
-    print(f"  API Key: {api_key[:6]}***{api_key[-4:]}")
-    print(f"  Base URL: {base_url}")
+
+    if not os.path.exists(IMAGE_PATH):
+        print(f"✗ 输入图片不存在: {IMAGE_PATH}")
+        sys.exit(1)
+
+    print(f"  API Key    : {ak[:6]}***{ak[-4:]}")
+    print(f"  Base URL   : {base_url}")
+    print(f"  输入图片   : {IMAGE_PATH}")
+    print(f"  输出路径   : {OUTPUT_PATH}")
+    print(f"  模型       : {MODEL}")
+    print(f"  时长       : {DURATION}s")
+    print(f"  镜头类型   : {SHOT_TYPE}")
+    if PROMPT:
+        print(f"  提示词     : {PROMPT[:80]}")
+    print("-" * 40)
+
     try:
-        client = WanVideoClient(api_key=api_key, base_url=base_url)
+        client = WanVideoClient(api_key=ak, base_url=base_url)
         print("✓ 客户端初始化成功")
-        print("  (视频生成需要图片输入且耗时数分钟，仅验证初始化)")
+        
+        start = time.time()
+        video_url = client.generate_video(
+            prompt=PROMPT,
+            image_path=IMAGE_PATH,
+            save_path=OUTPUT_PATH,
+            model=MODEL,
+            duration=DURATION,
+            shot_type=SHOT_TYPE,
+        )
+        elapsed = time.time() - start
+
+        print(f"✓ 视频生成完成！耗时 {elapsed:.1f}s")
+        print(f"  远端 URL : {video_url}")
+        print(f"  本地文件 : {os.path.abspath(OUTPUT_PATH)}")
+        print(f"  文件大小 : {os.path.getsize(OUTPUT_PATH) / 1024 / 1024:.2f} MB")
     except Exception as e:
-        print(f"✗ 初始化失败: {e}")
+        print(f"✗ 失败: {e}")
         sys.exit(1)

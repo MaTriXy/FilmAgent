@@ -62,6 +62,8 @@ class ImageGPT:
         if model is None:
             model = "sora_image"
 
+        print(f"Generating image with model '{model}'... Prompt: {prompt[:50]}...")
+
         # gpt-image-1.5 走官方 Responses API
         if model == "gpt-image-1.5":
             return self._generate_image_official(prompt, size=size, quality=quality,
@@ -205,14 +207,15 @@ if __name__ == "__main__":
         print(f"\n[1/2 sora_image] Prompt: {img_prompt}")
         client.max_attempts = 1
         t0 = time.time()
+        save_dir = "result/image/test_avail"
+        os.makedirs(save_dir, exist_ok=True)
         try:
-            with tempfile.TemporaryDirectory() as tmp:
-                path = client.generate_image(prompt=img_prompt, size="1024x1024", model="sora_image", save_dir=tmp)
-                elapsed = time.time() - t0
-                print(f"✓ 生成成功 ({elapsed:.1f}s): {path}")
+            path = client.generate_image(prompt=img_prompt, size="1024x1024", model="gpt-image-2", save_dir=save_dir)
+            elapsed = time.time() - t0
+            print(f"✓ 生成成功 ({elapsed:.1f}s): {path}")
         except Exception as e:
             elapsed = time.time() - t0
-            print(f"✗ 图片生成失败 ({elapsed:.1f}s): {e}\n  (该代理可能不支持 sora_image 模型)")
+            print(f"✗ 图片生成失败 ({elapsed:.1f}s): {e}\n")
     else:
         print("\n[1/2 sora_image] 跳过（OPENAI_API_KEY 未设置）")
 
@@ -222,12 +225,13 @@ if __name__ == "__main__":
         print(f"\n[2/2 gpt-image-1.5] Prompt: {img_prompt}")
         client.max_attempts = 1
         t0 = time.time()
+        save_dir = "result/image/test_avail"
+        os.makedirs(save_dir, exist_ok=True)
         try:
-            with tempfile.TemporaryDirectory() as tmp:
-                path = client.generate_image(prompt=img_prompt, size="1024x1024",
-                                              model="gpt-image-1.5", save_dir=tmp)
-                elapsed = time.time() - t0
-                print(f"✓ 生成成功 ({elapsed:.1f}s): {path}")
+            path = client.generate_image(prompt=img_prompt, size="1024x1024",
+                                              model="gpt-image-1.5", save_dir=save_dir)
+            elapsed = time.time() - t0
+            print(f"✓ 生成成功 ({elapsed:.1f}s): {path}")
         except Exception as e:
             elapsed = time.time() - t0
             print(f"✗ gpt-image-1.5 失败 ({elapsed:.1f}s): {e}")

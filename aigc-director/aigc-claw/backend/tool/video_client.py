@@ -15,10 +15,12 @@ try:
     from tool.video_wan import WanVideoClient
     from tool.image_jimeng import JiMengClient
     from tool.video_kling import KlingVideoClient
+    from tool.video_seedance import SeedanceVideoClient
 except ImportError:
     from video_wan import WanVideoClient
     from image_jimeng import JiMengClient
     from video_kling import KlingVideoClient
+    from video_seedance import SeedanceVideoClient
 
 logger = logging.getLogger(__name__)
 
@@ -58,6 +60,12 @@ class VideoClient:
             access_key=kling_access_key,
             secret_key=kling_secret_key,
             base_url=kling_base_url,
+        )
+
+        # Seedance 客户端
+        self.seedance_client = SeedanceVideoClient(
+            api_key=os.getenv("ARK_API_KEY"),
+            base_url=os.getenv("ARK_BASE_URL"),
         )
 
     def generate_video(
@@ -111,6 +119,8 @@ class VideoClient:
             return self._generate_jimeng(prompt, image_path, save_path, model, video_ratio)
         elif "kling" in model_lower:
             return self._generate_kling(prompt, image_path, save_path, model, duration, sound)
+        elif "seedance" in model_lower:
+            return self._generate_seedance(prompt, image_path, save_path, model, duration)
         else:
             return self._generate_wan(prompt, image_path, save_path, model, duration, shot_type)
 
@@ -186,4 +196,22 @@ class VideoClient:
             model=model,
             duration=duration,
             sound=sound,
+        )
+
+    def _generate_seedance(
+        self,
+        prompt: str,
+        image_path: str,
+        save_path: str,
+        model: str,
+        duration: int = 5,
+    ) -> str:
+        """通过 Seedance 模型生成视频"""
+        logger.info(f"VideoClient: 路由至 Seedance model={model}")
+        return self.seedance_client.generate_video(
+            prompt=prompt,
+            image_path=image_path,
+            save_path=save_path,
+            model=model,
+            duration=duration,
         )
