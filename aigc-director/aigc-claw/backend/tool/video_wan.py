@@ -1,7 +1,7 @@
 """
 通义万象（Wan）视频生成客户端
 基于 DashScope SDK (dashscope.VideoSynthesis)
-支持 wan2.6-i2v-flash 等模型的图生视频功能
+支持 wan2.7-i2v, wan2.6-i2v-flash 等模型的图生视频功能
 """
 
 import os
@@ -40,7 +40,7 @@ class WanVideoClient:
         prompt: str,
         image_path: str,
         save_path: str,
-        model: str = "wan2.6-i2v-flash",
+        model: str = "wan2.7-i2v",
         duration: int = 10,
         shot_type: str = "multi",
     ) -> str:

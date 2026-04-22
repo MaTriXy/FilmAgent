@@ -80,8 +80,8 @@ class Config:
     IMAGE_T2I_MODEL = os.getenv("IMAGE_T2I_MODEL", "doubao-seedream-5-0-260128")
 
     # 3. 视频生成
-    # 可选: "wan2.6-i2v-flash"
-    VIDEO_MODEL = os.getenv("VIDEO_MODEL", "wan2.6-i2v-flash")
+    # 可选: "doubao-seedance-2-0-260128", "wan2.7-i2v", "wan2.6-i2v-flash", 
+    VIDEO_MODEL = os.getenv("VIDEO_MODEL", "wan2.7-i2v")
     VIDEO_RATIO = os.getenv("VIDEO_RATIO", "16:9") 
 
     @classmethod

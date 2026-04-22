@@ -82,7 +82,7 @@ curl -X POST "http://localhost:8000/api/project/{session_id}/continue"
 | 错误 | 原因 | 解决方法 |
 |------|------|----------|
 | `curl: (7) Failed to connect` | 后端未运行 | 启动后端服务 |
-| `asset_complete` 状态为 failed | 视频生成失败（超时/限流/不支持的内容） | 可降低并发数重试，或检查视频模型是否支持该内容 |
+| `asset_complete` 状态为 failed | 视频生成失败（超时/限流/不支持的内容） | 可降低并发数重试（如 wan2.7-i2v 并发设为 5），或检查视频模型是否支持该内容 |
 | 视频下载失败 | URL 路径错误 | 确认 path 格式为 `code/result/...` |
 | 视频文件太小 | 生成可能失败 | 检查文件大小 > 1KB |
 | SSE 连接断开 | 视频生成时间长 | 使用轮询 `/api/project/{session_id}/status` 继续 |

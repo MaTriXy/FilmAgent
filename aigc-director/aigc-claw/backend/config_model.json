@@ -176,6 +176,13 @@
       "concurrency": 3,
       "price_per_image": 1.09
     },
+    "gpt-image-2": {
+      "name": "GPT Image 2.0",
+      "provider": "openai",
+      "type": ["t2i"],
+      "concurrency": 5,
+      "price_per_image": 1.5
+    },
     "wan2.6-i2v-flash": {
       "name": "Wan 2.6 I2V Flash",
       "provider": "dashscope",
@@ -189,6 +196,13 @@
       "type": ["video"],
       "concurrency": 3,
       "price_per_second": 0.6
+    },
+    "wan2.7-i2v": {
+      "name": "Wan 2.7 I2V",
+      "provider": "dashscope",
+      "type": ["video"],
+      "concurrency": 5,
+      "price_per_second": 0.8
     },
     "jimeng_ti2v_v30_pro": {
       "name": "JiMeng Ti2V V30 Pro",
@@ -217,6 +231,13 @@
       "type": ["video"],
       "concurrency": 3,
       "price_per_second": 0.3
+    },
+    "doubao-seedance-2-0-260128": {
+      "name": "Seedance 2.0",
+      "provider": "seedance",
+      "type": ["video"],
+      "concurrency": 10,
+      "price_per_second": 0.5
     }
   }
 }

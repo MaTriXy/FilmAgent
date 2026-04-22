@@ -84,6 +84,7 @@ export const T2I_PROVIDERS: ProviderGroup[] = [
         models: [
             { id: 'sora_image', label: 'sora_image' },
             { id: 'gpt-image-1.5', label: 'gpt-image-1.5' },
+            { id: 'gpt-image-2', label: 'gpt-image-2.0' },
         ],
     },
 ];
@@ -125,7 +126,15 @@ export const VIDEO_PROVIDERS: ProviderGroup[] = [
         provider: 'dashscope',
         label: 'DashScope',
         models: [
-            { id: 'wan2.6-i2v-flash', label: 'wan2.6-i2v-flash', default: true },
+            { id: 'wan2.7-i2v', label: 'wan2.7-i2v', default: true },
+            { id: 'wan2.6-i2v-flash', label: 'wan2.6-i2v-flash' },
+        ],
+    },
+    {
+        provider: 'seedance',
+        label: 'Seedance',
+        models: [
+            { id: 'doubao-seedance-2-0-260128', label: 'Seedance 2.0' },
         ],
     },
     {

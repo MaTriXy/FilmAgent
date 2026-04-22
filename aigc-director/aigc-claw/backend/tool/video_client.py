@@ -73,7 +73,7 @@ class VideoClient:
         prompt: str,
         image_path: str,
         save_path: str,
-        model: str = "wan2.6-i2v-flash",
+        model: str = "wan2.7-i2v",
         duration: int = 5,
         shot_type: str = "multi",
         sound: str = "",
@@ -98,7 +98,7 @@ class VideoClient:
             RuntimeError: 生成或下载失败
         """
         if not model:
-            model = "wan2.6-i2v-flash"
+            model = "wan2.7-i2v"
 
         if Config.PRINT_MODEL_INPUT:
             print("---- VIDEO GENERATION REQUEST ----")

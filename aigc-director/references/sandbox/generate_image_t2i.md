@@ -18,6 +18,7 @@ curl -X POST "http://localhost:8000/api/sandbox/t2i" \
 | 模型 | 说明 |
 |------|------|
 | doubao-seedream-5-0 | 默认 |
+| gpt-image-2 | OpenAI 最新模型 |
 | wan2.6-t2i | |
 | sora_image | |
 
