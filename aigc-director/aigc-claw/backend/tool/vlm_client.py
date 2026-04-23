@@ -5,9 +5,11 @@ from config import Config
 try:
     from tool.vlm_dashscope import QwenVLClient
     from tool.vlm_gemini import GeminiVLClient
+    from tool.vlm_gpt import GPTVLClient
 except ImportError:
     from vlm_dashscope import QwenVLClient
     from vlm_gemini import GeminiVLClient
+    from vlm_gpt import GPTVLClient
 
 class VLM:
     def __init__(self,
@@ -15,6 +17,8 @@ class VLM:
                  dashscope_base_url: Optional[str] = None,
                  gemini_api_key: Optional[str] = None,
                  gemini_base_url: Optional[str] = None,
+                 gpt_api_key: Optional[str] = None,
+                 gpt_base_url: Optional[str] = None,
                  local_proxy: Optional[str] = None):
         """
         Unified VLM (Vision Language Model) Client
@@ -30,11 +34,17 @@ class VLM:
             api_key=gemini_api_key,
             base_url=gemini_base_url
         )
+        # Initialize GPT Client
+        self.gpt_client = GPTVLClient(
+            api_key=gpt_api_key,
+            base_url=gpt_base_url,
+            local_proxy=local_proxy
+        )
 
     def query(self,
              prompt: str,
              image_paths: Optional[List[str]] = None,
-             model: str = "qwen3.5-plus",
+             model: str = "qwen3.6-plus",
              session_id: Optional[str] = None) -> str:
         if Config.PRINT_MODEL_INPUT:
             print("---- VLM REQUEST ----")
@@ -54,6 +64,7 @@ class VLM:
         # Determine backend provider
         model_lower = model.lower()
         is_gemini = "gemini" in model_lower
+        is_gpt = "gpt" in model_lower
 
         if is_gemini:
             # 处理图片路径
@@ -64,8 +75,10 @@ class VLM:
                 else:
                     processed_images.append(p)  # 传递原始路径，内部会处理
             return self.gemini_client.chat(text=prompt, images=processed_images, model=model)
+        elif is_gpt:
+            return self.gpt_client.chat(text=prompt, images=image_paths or [], model=model)
         else:
-            # Qwen (DashScope) - 需要将 base64 保存为临时文件
+            # DashScope (Qwen/Kimi) - 需要将 base64 保存为临时文件
             file_urls = []
             import tempfile
             import base64 as b64

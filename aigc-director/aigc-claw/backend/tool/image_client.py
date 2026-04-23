@@ -27,7 +27,6 @@ class ImageClient:
                  jimeng_secret_key: Optional[str] = None,
                  gpt_api_key: Optional[str] = None,
                  gpt_base_url: Optional[str] = None,
-                 gpt_official_api_key: Optional[str] = None,
                  local_proxy: Optional[str] = None,
                  ark_api_key: Optional[str] = None,
                  ark_base_url: Optional[str] = None):
@@ -58,8 +57,7 @@ class ImageClient:
         self.gpt_client = ImageGPT(
             api_key=gpt_api_key,
             base_url=gpt_base_url,
-            official_api_key=gpt_official_api_key or '',
-            local_proxy=local_proxy or ''
+            local_proxy=local_proxy
         )
 
         # Initialize Image Processor for downloads

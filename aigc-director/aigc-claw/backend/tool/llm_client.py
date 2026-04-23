@@ -6,11 +6,13 @@ try:
     from tool.llm_gemini import Gemini
     from tool.llm_deepseek import DeepSeek
     from tool.llm_dashscope import QwenLLM
+    from tool.vlm_dashscope import QwenVLClient
 except ImportError:
     from llm_gpt import GPT
     from llm_gemini import Gemini
     from llm_deepseek import DeepSeek
     from llm_dashscope import QwenLLM
+    from vlm_dashscope import QwenVLClient
 
 from config import Config
 
@@ -36,7 +38,7 @@ class LLM:
             
         return text.translate(translation_table)
 
-    def query(self, prompt, image_urls=[], model="gemini-3-flash-preview", safe_content=True, task_id=None, web_search=False):
+    def query(self, prompt, image_urls=[], model="qwen3.6-max-preview", safe_content=True, task_id=None, web_search=False):
         """
         Query the LLM with a prompt and optional image URLs.
         Selects the backend (GPT or Gemini) based on the model name.
@@ -47,7 +49,7 @@ class LLM:
             prompt = self.full_to_half(prompt)
 
         if not model:
-            model = "gemini-3-flash-preview"
+            model = "qwen3.6-max-preview"
             
         if Config.PRINT_MODEL_INPUT:
             print("---- LLM QUERY REQUEST ----")
@@ -64,21 +66,31 @@ class LLM:
         result = ""
         model_lower = model.lower()
         if model_lower.startswith("gemini"):
-            # Gemini client handles its own credentials internally in the current implementation,
-            # but we pass args for consistency/future compatibility.
-            # Note: Gemini doesn't have built-in web search parameter, user needs to use Function Calling
             client = Gemini(base_url=self.gemini_base_url, api_key=self.gemini_api_key)
             result = client.query(prompt, image_urls=image_urls, model=model)
-        elif model_lower.startswith("deepseek"):
-            client = DeepSeek(base_url=self.deepseek_base_url, api_key=self.deepseek_api_key)
+        elif "gpt" in model_lower:
+            # OpenAI series models
+            client = GPT(
+                base_url=self.gpt_base_url, 
+                api_key=self.gpt_api_key, 
+                local_proxy=Config.LOCAL_PROXY
+            )
             result = client.query(prompt, image_urls=image_urls, model=model, web_search=web_search)
-        elif "qwen" in model_lower:
-            # Qwen models via DashScope Generation API (text-only mode)
+        elif "kimi" in model_lower or "qwen3.6-plus" in model_lower or "qwen3.6-flash" in model_lower:
+            # DashScope VLM models (using MultiModalConversation API)
+            dashscope_vl_client = QwenVLClient(api_key=self.dashscope_api_key)
+            result = dashscope_vl_client.chat(text=prompt, images=[], model=model, stream=False)
+        elif "deepseek-v3.2" in model_lower:
+            # DeepSeek v3.2 (通过 DashScope Generation API)
             client = QwenLLM(api_key=self.dashscope_api_key)
             result = client.query(prompt, image_urls=image_urls, model=model, web_search=web_search)
+        elif model_lower.startswith("deepseek") and "v3.2" not in model_lower:
+            # Original DeepSeek provider
+            client = DeepSeek(base_url=self.deepseek_base_url, api_key=self.deepseek_api_key)
+            result = client.query(prompt, image_urls=image_urls, model=model, web_search=web_search)
         else:
-            # OpenAI 系列: gpt-4, gpt-4o, gpt-5, gpt-5.1, o3 等
-            client = GPT(base_url=self.gpt_base_url, api_key=self.gpt_api_key)
+            # Default to Qwen models / deepseek-v3.2 via DashScope Generation API
+            client = QwenLLM(api_key=self.dashscope_api_key)
             result = client.query(prompt, image_urls=image_urls, model=model, web_search=web_search)
 
         if safe_content:

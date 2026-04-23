@@ -69,7 +69,7 @@ if __name__ == "__main__":
     from config import Config
 
     # 支持的 VLM 模型列表
-    MODELS = ["qwen3.5-plus", "qwen-vl-plus", "qwen3.5-max"]
+    MODELS = ["qwen3.6-plus", "qwen3.6-flash", "kimi-k2.6"]
 
     print("=== Qwen VL (DashScope) 多模态可用性测试 ===")
     api_key = getattr(Config, "DASHSCOPE_API_KEY", None) or os.getenv("DASHSCOPE_API_KEY", "")
@@ -83,7 +83,7 @@ if __name__ == "__main__":
     img_path = ''
     abs_img_path = os.path.abspath(img_path)
     if not os.path.exists(img_path):
-        img_path = "backend/code/result/image/test_avail/test_input.png"
+        img_path = "code/result/image/test_avail/test_input.png"
         abs_img_path = os.path.abspath(img_path)
         if not os.path.exists(img_path):
             print("✗ 测试图片不存在，跳过")

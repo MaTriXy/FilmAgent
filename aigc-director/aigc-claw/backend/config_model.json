@@ -21,125 +21,110 @@
       "provider": "openai",
       "type": ["llm"],
       "concurrency": 10,
-      "price_per_1k_input_token": 0.01813,
-      "price_per_1k_output_token": 0.0725
-    },
-    "gpt-4": {
-      "name": "GPT-4",
-      "provider": "openai",
-      "type": ["llm"],
-      "concurrency": 10,
-      "price_per_1k_input_token": 0.02175,
-      "price_per_1k_output_token": 0.087
+      "price_per_1k_input_token": 0.018,
+      "price_per_1k_output_token": 0.072
     },
     "gpt-5": {
       "name": "GPT-5",
       "provider": "openai",
       "type": ["llm"],
       "concurrency": 10,
-      "price_per_1k_input_token": 0.01813,
-      "price_per_1k_output_token": 0.10875
+      "price_per_1k_input_token": 0.02,
+      "price_per_1k_output_token": 0.1
     },
-    "gpt-5.1": {
-      "name": "GPT-5.1",
+    "gpt-5.4": {
+      "name": "GPT-5.4",
       "provider": "openai",
-      "type": ["llm"],
-      "concurrency": 10,
-      "price_per_1k_input_token": 0.01813,
-      "price_per_1k_output_token": 0.10875
-    },
-    "o3": {
-      "name": "OpenAI o3",
-      "provider": "openai",
-      "type": ["llm"],
-      "concurrency": 10,
-      "price_per_1k_input_token": 0.0145,
-      "price_per_1k_output_token": 0.058
-    },
-    "qwen3.5-plus": {
-      "name": "Qwen 3.5 Plus",
-      "provider": "qwen",
       "type": ["llm", "vlm"],
       "concurrency": 10,
-      "price_per_1k_input_token": 0.0008,
-      "price_per_1k_output_token": 0.002
+      "price_per_1k_input_token": 0.03,
+      "price_per_1k_output_token": 0.12
     },
-    "qwen3.5-max": {
-      "name": "Qwen 3.5 Max",
+    "qwen3.6-max-preview": {
+      "name": "Qwen 3.6 Max Preview",
       "provider": "qwen",
-      "type": ["llm", "vlm"],
+      "type": ["llm"],
       "concurrency": 10,
       "price_per_1k_input_token": 0.006,
       "price_per_1k_output_token": 0.024
     },
-    "qwen-vl-plus": {
-      "name": "Qwen VL Plus",
+    "qwen3-max": {
+      "name": "Qwen 3 Max",
+      "provider": "qwen",
+      "type": ["llm"],
+      "concurrency": 10,
+      "price_per_1k_input_token": 0.006,
+      "price_per_1k_output_token": 0.024
+    },
+    "deepseek-v3.2": {
+      "name": "DeepSeek V3.2 (DashScope)",
+      "provider": "qwen",
+      "type": ["llm"],
+      "concurrency": 10,
+      "price_per_1k_input_token": 0.002,
+      "price_per_1k_output_token": 0.008
+    },
+    "qwen3.6-plus": {
+      "name": "Qwen 3.6 Plus",
       "provider": "qwen",
       "type": ["vlm"],
       "concurrency": 10,
       "price_per_1k_input_token": 0.0008,
       "price_per_1k_output_token": 0.002
     },
-    "gemini-3-flash-preview": {
-      "name": "Gemini 3 Flash Preview",
-      "provider": "gemini",
-      "type": ["llm", "vlm"],
+    "qwen3.6-flash": {
+      "name": "Qwen 3.6 Flash",
+      "provider": "qwen",
+      "type": ["vlm"],
       "concurrency": 10,
-      "price_per_1k_input_token": 0.00181,
-      "price_per_1k_output_token": 0.01088
+      "price_per_1k_input_token": 0.0001,
+      "price_per_1k_output_token": 0.0001
     },
-    "gemini-3-pro-preview": {
-      "name": "Gemini 3 Pro Preview",
+    "kimi-k2.6": {
+      "name": "Kimi K2.6",
+      "provider": "qwen",
+      "type": ["vlm"],
+      "concurrency": 10,
+      "price_per_1k_input_token": 0.001,
+      "price_per_1k_output_token": 0.003
+    },
+    "gemini-2.5-flash": {
+      "name": "Gemini 2.5 Flash",
+      "provider": "gemini",
+      "type": ["llm"],
+      "concurrency": 10,
+      "price_per_1k_input_token": 0.002,
+      "price_per_1k_output_token": 0.01
+    },
+    "gemini-2.0-flash": {
+      "name": "Gemini 2.0 Flash",
       "provider": "gemini",
       "type": ["llm", "vlm"],
       "concurrency": 10,
-      "price_per_1k_input_token": 0.0145,
-      "price_per_1k_output_token": 0.087
+      "price_per_1k_input_token": 0.002,
+      "price_per_1k_output_token": 0.01
     },
     "gemini-2.5-flash-image": {
       "name": "Gemini 2.5 Flash Image",
       "provider": "gemini",
       "type": ["vlm"],
       "concurrency": 10,
-      "price_per_1k_input_token": 0.00218,
-      "price_per_1k_output_token": 0.01813
-    },
-    "gemini-2.5-pro-image": {
-      "name": "Gemini 2.5 Pro Image",
-      "provider": "gemini",
-      "type": ["vlm"],
-      "concurrency": 10,
-      "price_per_1k_input_token": 0.00906,
-      "price_per_1k_output_token": 0.0725
-    },
-    "gemini-3-pro-image-preview": {
-      "name": "Gemini 3 Pro Image Preview",
-      "provider": "gemini",
-      "type": ["vlm"],
-      "concurrency": 10,
-      "price_per_1k_input_token": 0.0145,
-      "price_per_1k_output_token": 0.087
+      "price_per_1k_input_token": 0.002,
+      "price_per_1k_output_token": 0.01
     },
     "jimeng_t2i_v40": {
       "name": "JiMeng T2I V4.0",
       "provider": "jimeng",
       "type": ["t2i", "i2i"],
-      "concurrency": 1,
+      "concurrency": 2,
       "price_per_image": 0.22
     },
     "wan2.6-t2i": {
       "name": "Wan 2.6 T2I",
       "provider": "dashscope",
-      "type": ["t2i"],
+      "type": ["t2i", "i2i"],
       "concurrency": 5,
       "price_per_image": 0.2
-    },
-    "wan2.6-image": {
-      "name": "Wan 2.6 Image",
-      "provider": "dashscope",
-      "type": ["i2i"],
-      "concurrency": 5,
-      "price_per_second": 0.2
     },
     "doubao-seedream-5-0-260128": {
       "name": "Seedream 5.0",
@@ -169,32 +154,18 @@
       "concurrency": 3,
       "price_per_image": 1.45
     },
-    "gpt-image-1.5": {
-      "name": "GPT Image 1.5",
+    "gpt-image-2": {
+      "name": "GPT Image 2",
       "provider": "openai",
       "type": ["t2i"],
       "concurrency": 3,
       "price_per_image": 1.09
     },
-    "gpt-image-2": {
-      "name": "GPT Image 2.0",
-      "provider": "openai",
-      "type": ["t2i"],
-      "concurrency": 5,
-      "price_per_image": 1.5
-    },
     "wan2.6-i2v-flash": {
       "name": "Wan 2.6 I2V Flash",
       "provider": "dashscope",
       "type": ["video"],
-      "concurrency": 3,
-      "price_per_second": 0.6
-    },
-    "wan2.6-i2v": {
-      "name": "Wan 2.6 I2V",
-      "provider": "dashscope",
-      "type": ["video"],
-      "concurrency": 3,
+      "concurrency": 5,
       "price_per_second": 0.6
     },
     "wan2.7-i2v": {
@@ -203,13 +174,6 @@
       "type": ["video"],
       "concurrency": 5,
       "price_per_second": 0.8
-    },
-    "jimeng_ti2v_v30_pro": {
-      "name": "JiMeng Ti2V V30 Pro",
-      "provider": "jimeng",
-      "type": ["video"],
-      "concurrency": 3,
-      "price_per_second": 0.4
     },
     "kling-v3": {
       "name": "Kling V3",
@@ -238,6 +202,13 @@
       "type": ["video"],
       "concurrency": 10,
       "price_per_second": 0.5
+    },
+    "jimeng_ti2v_v30_pro": {
+      "name": "JiMeng Ti2V V30 Pro",
+      "provider": "jimeng",
+      "type": ["video"],
+      "concurrency": 3,
+      "price_per_second": 0.4
     }
   }
 }

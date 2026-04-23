@@ -485,7 +485,6 @@ class ReferenceGeneratorAgent(AgentInterface):
             dashscope_base_url=settings.DASHSCOPE_BASE_URL,
             gpt_api_key=os.getenv("OPENAI_API_KEY"),
             gpt_base_url=os.getenv("OPENAI_BASE_URL"),
-            gpt_official_api_key=settings.OPENAI_OFFICIAL_API_KEY,
             local_proxy=settings.LOCAL_PROXY,
             ark_api_key=settings.ARK_API_KEY,
             ark_base_url=settings.ARK_BASE_URL,

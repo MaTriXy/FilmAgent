@@ -30,13 +30,15 @@ class QwenLLM:
         :param base_url: DashScope API Base URL (可选)
         """
         self.api_key = api_key or os.getenv("DASHSCOPE_API_KEY")
-        self.base_url = base_url or os.getenv("DASHSCOPE_BASE_URL", "https://dashscope.aliyuncs.com/api/v1")
+        self.base_url = base_url or os.getenv("DASHSCOPE_BASE_URL")
 
         if not self.api_key:
             print("Warning: DASHSCOPE_API_KEY is not set.")
 
         if dashscope:
             dashscope.api_key = self.api_key
+            if self.base_url:
+                dashscope.base_http_api_url = self.base_url
 
         self.max_attempts = 3
         self.max_tokens = 8000
@@ -55,16 +57,7 @@ class QwenLLM:
             raise RuntimeError("dashscope package not installed. Run: pip install dashscope")
 
         if not model:
-            model = "qwen3.5-vl"
-
-        # Map common model names to DashScope API names
-        model_mapping = {
-            "qwen3.5-plus": "qwen-plus",
-            "qwen3.5-max": "qwen-max",
-            "qwen2.5-plus": "qwen-plus",
-            "qwen2.5-max": "qwen-max",
-        }
-        api_model = model_mapping.get(model.lower(), model)
+            model = "qwen3.5-plus"
 
         messages = [{"role": "system", "content": "You are a helpful assistant."}]
         messages.append({"role": "user", "content": prompt})
@@ -74,7 +67,7 @@ class QwenLLM:
             try:
                 # Build request parameters
                 request_params = {
-                    "model": api_model,
+                    "model": model,
                     "messages": messages,
                     "result_format": "message",
                     "stream": False,
@@ -84,11 +77,14 @@ class QwenLLM:
                 if web_search:
                     request_params["enable_search"] = True
 
-                response = Generation.call(**request_params)
+                response = Generation.call(api_key=self.api_key, **request_params)
 
                 if response.status_code == 200:
-                    if response.output.choices and response.output.choices[0].message.content:
-                        return response.output.choices[0].message.content
+                    choice = response.output.choices[0]
+                    if choice.message.content:
+                        return choice.message.content
+                    elif hasattr(choice.message, 'reasoning_content') and choice.message.reasoning_content:
+                        return choice.message.reasoning_content
                     else:
                         print("Received an empty response from Qwen. Retrying.")
                         time.sleep(2)
@@ -112,9 +108,10 @@ if __name__ == "__main__":
     from config import Config
 
     # 支持的模型列表
-    MODELS = ["qwen3.5-plus", "qwen3.5-max"]
 
-    print("=== Qwen LLM (DashScope) 可用性测试 ===")
+    MODELS = ["qwen3.6-max-preview", "qwen3-max", "deepseek-v3.2"]
+
+    print("=== DashScope LLM 可用性测试 ===")
     api_key = os.getenv("DASHSCOPE_API_KEY", "")
     if not api_key:
         print("✗ DASHSCOPE_API_KEY 未设置，跳过")

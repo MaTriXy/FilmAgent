@@ -7,13 +7,28 @@ from openai import OpenAI
 class GPT:
     """
     OpenAI 文本生成客户端
-    可选模型：gpt-4o 等
+    可选模型：gpt-4o, 
     """
-    def __init__(self, base_url="", api_key="", timeout=300):
-        if base_url:
-            self.client = OpenAI(api_key=api_key, base_url=base_url, timeout=timeout)
-        else:
-            self.client = OpenAI(api_key=api_key, timeout=timeout)
+    def __init__(self, base_url="", api_key="", local_proxy=None, timeout=300):
+        import httpx
+        self.api_key = api_key or os.getenv("OPENAI_API_KEY")
+        self.timeout = timeout
+        
+        kwargs = {"api_key": self.api_key, "timeout": self.timeout}
+        
+        # 代理逻辑：
+        # 1. 如果传入了 base_url，则不使用本地代理
+        # 2. 如果没传入 base_url，则使用默认值并尝试开启本地代理
+        self.base_url = base_url
+        if not self.base_url and local_proxy:
+            kwargs["http_client"] = httpx.Client(
+                proxy=local_proxy,
+                timeout=self.timeout,
+            )
+        if self.base_url:
+            kwargs["base_url"] = self.base_url
+            
+        self.client = OpenAI(**kwargs)
         self.max_attempts = 10
         self.max_tokens = 8000
 
@@ -71,7 +86,7 @@ if __name__ == "__main__":
     from config import Config
 
     # 支持的模型列表
-    MODELS = ["gpt-4o", "gpt-4o-mini", "gpt-4.1", "gpt-4.1-mini", "gpt-5"]
+    MODELS = ["gpt-4o", "gpt-5", "gpt-5.4"]
 
     print("=== GPT 文本生成可用性测试 ===")
     api_key = Config.OPENAI_API_KEY

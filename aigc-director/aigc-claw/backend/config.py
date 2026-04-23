@@ -39,8 +39,6 @@ class Config:
     # LLM (OpenAI / Gemini)
     OPENAI_API_KEY = os.getenv("OPENAI_API_KEY", "")
     OPENAI_BASE_URL = os.getenv("OPENAI_BASE_URL", "https://api.openai.com/v1")
-    # 官方 OpenAI API Key（用于 gpt-image-1.5 等必须直连官方的模型）
-    OPENAI_OFFICIAL_API_KEY = os.getenv("OPENAI_OFFICIAL_API_KEY", "")
     GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "")
     GOOGLE_GEMINI_BASE_URL = os.getenv("GOOGLE_GEMINI_BASE_URL", "")
 
@@ -62,9 +60,9 @@ class Config:
 
     # 代理设置
     PROXY = os.getenv("PROXY", "")
-    LOCAL_PROXY = os.getenv("LOCAL_PROXY", "")
-    HTTP_PROXY = os.getenv("HTTP_PROXY", "")
-    HTTPS_PROXY = os.getenv("HTTPS_PROXY", "")
+    LOCAL_PROXY = os.getenv("LOCAL_PROXY", PROXY)
+    HTTP_PROXY = os.getenv("HTTP_PROXY", PROXY)
+    HTTPS_PROXY = os.getenv("HTTPS_PROXY", PROXY)
     
     # ==========================
     # 视频生成参数配置

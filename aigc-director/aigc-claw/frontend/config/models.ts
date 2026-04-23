@@ -17,8 +17,9 @@ export const LLM_PROVIDERS: ProviderGroup[] = [
         provider: 'qwen',
         label: 'Qwen (DashScope)',
         models: [
-            { id: 'qwen3.5-plus', label: 'qwen3.5-plus', default: true },
-            { id: 'qwen3.5-max', label: 'qwen3.5-max' },
+            { id: 'qwen3.6-max-preview', label: 'qwen3.6-max-preview', default: true },
+            { id: 'qwen3-max', label: 'qwen3-max' },
+            { id: 'deepseek-v3.2', label: 'deepseek-v3.2 (DashScope)' },
         ],
     },
     {
@@ -34,18 +35,16 @@ export const LLM_PROVIDERS: ProviderGroup[] = [
         label: 'OpenAI',
         models: [
             { id: 'gpt-4o', label: 'gpt-4o' },
-            { id: 'gpt-4', label: 'gpt-4' },
             { id: 'gpt-5', label: 'gpt-5' },
-            { id: 'gpt-5.1', label: 'gpt-5.1' },
-            { id: 'o3', label: 'o3' },
+            { id: 'gpt-5.4', label: 'gpt-5.4' },
         ],
     },
     {
         provider: 'gemini',
         label: 'Gemini',
         models: [
-            { id: 'gemini-3-flash-preview', label: 'gemini-3-flash-preview' },
-            { id: 'gemini-3-pro-preview', label: 'gemini-3-pro-preview' },
+            { id: 'gemini-2.5-flash', label: 'gemini-2.5-flash' },
+            { id: 'gemini-2.0-flash', label: 'gemini-2.0-flash' },
         ],
     },
 ];
@@ -56,12 +55,10 @@ export const LLM_MODELS: ModelOption[] = LLM_PROVIDERS.flatMap(p => p.models);
 /* ─── 文生图 ─── */
 export const T2I_PROVIDERS: ProviderGroup[] = [
     {
-        provider: 'seedream',
-        label: 'Seedream',
+        provider: 'dashscope',
+        label: 'DashScope',
         models: [
-            { id: 'doubao-seedream-5-0-260128', label: 'Seedream 5.0', default: true },
-            { id: 'doubao-seedream-4-5-251128', label: 'Seedream 4.5' },
-            { id: 'doubao-seedream-4-0-250828', label: 'Seedream 4.0' },
+            { id: 'wan2.6-t2i', label: 'wan2.6-t2i', default: true },
         ],
     },
     {
@@ -72,10 +69,12 @@ export const T2I_PROVIDERS: ProviderGroup[] = [
         ],
     },
     {
-        provider: 'dashscope',
-        label: 'DashScope',
+        provider: 'seedream',
+        label: 'Seedream',
         models: [
-            { id: 'wan2.6-t2i', label: 'wan2.6-t2i' },
+            { id: 'doubao-seedream-5-0-260128', label: 'Seedream 5.0' },
+            { id: 'doubao-seedream-4-5-251128', label: 'Seedream 4.5' },
+            { id: 'doubao-seedream-4-0-250828', label: 'Seedream 4.0' },
         ],
     },
     {
@@ -83,8 +82,7 @@ export const T2I_PROVIDERS: ProviderGroup[] = [
         label: 'OpenAI',
         models: [
             { id: 'sora_image', label: 'sora_image' },
-            { id: 'gpt-image-1.5', label: 'gpt-image-1.5' },
-            { id: 'gpt-image-2', label: 'gpt-image-2.0' },
+            { id: 'gpt-image-2', label: 'gpt-image-2' },
         ],
     },
 ];
@@ -94,12 +92,10 @@ export const T2I_MODELS: ModelOption[] = T2I_PROVIDERS.flatMap(p => p.models);
 /* ─── 图生图 ─── */
 export const I2I_PROVIDERS: ProviderGroup[] = [
     {
-        provider: 'seedream',
-        label: 'Seedream',
+        provider: 'dashscope',
+        label: 'DashScope',
         models: [
-            { id: 'doubao-seedream-5-0-260128', label: 'Seedream 5.0', default: true },
-            { id: 'doubao-seedream-4-5-251128', label: 'Seedream 4.5' },
-            { id: 'doubao-seedream-4-0-250828', label: 'Seedream 4.0' },
+            { id: 'wan2.6-t2i', label: 'wan2.6-t2i', default: true },
         ],
     },
     {
@@ -110,10 +106,19 @@ export const I2I_PROVIDERS: ProviderGroup[] = [
         ],
     },
     {
-        provider: 'dashscope',
-        label: 'DashScope',
+        provider: 'seedream',
+        label: 'Seedream',
         models: [
-            { id: 'wan2.6-image', label: 'wan2.6-image' },
+            { id: 'doubao-seedream-5-0-260128', label: 'Seedream 5.0' },
+            { id: 'doubao-seedream-4-5-251128', label: 'Seedream 4.5' },
+            { id: 'doubao-seedream-4-0-250828', label: 'Seedream 4.0' },
+        ],
+    },
+    {
+        provider: 'openai',
+        label: 'OpenAI',
+        models: [
+            { id: 'gpt-image-2', label: 'gpt-image-2' },
         ],
     },
 ];
@@ -154,11 +159,18 @@ export const VIDEO_MODELS: ModelOption[] = VIDEO_PROVIDERS.flatMap(p => p.models
 export const VLM_PROVIDERS: ProviderGroup[] = [
     {
         provider: 'qwen',
-        label: 'Qwen (DashScope)',
+        label: 'Qwen/Kimi (DashScope)',
         models: [
-            { id: 'qwen-vl-plus', label: 'qwen-vl-plus', default: true },
-            { id: 'qwen3.5-plus', label: 'qwen3.5-plus' },
-            { id: 'qwen3.5-max', label: 'qwen3.5-max' },
+            { id: 'qwen3.6-plus', label: 'qwen3.6-plus', default: true },
+            { id: 'qwen3.6-flash', label: 'qwen3.6-flash' },
+            { id: 'kimi-k2.6', label: 'kimi-k2.6' },
+        ],
+    },
+    {
+        provider: 'openai',
+        label: 'OpenAI',
+        models: [
+            { id: 'gpt-5.4', label: 'gpt-5.4' },
         ],
     },
     {
@@ -166,9 +178,7 @@ export const VLM_PROVIDERS: ProviderGroup[] = [
         label: 'Gemini (Google)',
         models: [
             { id: 'gemini-2.5-flash-image', label: 'gemini-2.5-flash-image' },
-            { id: 'gemini-2.5-pro-image', label: 'gemini-2.5-pro-image' },
-            { id: 'gemini-3-pro-preview', label: 'gemini-3-pro-preview' },
-            { id: 'gemini-3-pro-image-preview', label: 'gemini-3-pro-image-preview' },
+            { id: 'gemini-2.0-flash', label: 'gemini-2.0-flash' },
         ],
     },
 ];
