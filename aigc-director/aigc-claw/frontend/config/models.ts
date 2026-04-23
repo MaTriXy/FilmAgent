@@ -20,6 +20,7 @@ export const LLM_PROVIDERS: ProviderGroup[] = [
             { id: 'qwen3.6-max-preview', label: 'qwen3.6-max-preview', default: true },
             { id: 'qwen3-max', label: 'qwen3-max' },
             { id: 'deepseek-v3.2', label: 'deepseek-v3.2 (DashScope)' },
+            { id: 'kimi-k2.6', label: 'kimi-k2.6 (DashScope)' },
         ],
     },
     {
