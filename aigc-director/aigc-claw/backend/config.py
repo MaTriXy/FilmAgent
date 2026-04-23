@@ -62,7 +62,7 @@ class Config:
 
     # 代理设置
     PROXY = os.getenv("PROXY", "")
-    LOCAL_PROXY = os.getenv("LOCAL_PROXY", "http://127.0.0.1:7897")
+    LOCAL_PROXY = os.getenv("LOCAL_PROXY", "")
     HTTP_PROXY = os.getenv("HTTP_PROXY", "")
     HTTPS_PROXY = os.getenv("HTTPS_PROXY", "")
     

@@ -204,7 +204,7 @@ if __name__ == "__main__":
     # 1. sora_image 图片生成（仅尝试 1 次）
     if api_key:
         img_prompt = "一只橘猫躺在阳光下的窗台上"
-        print(f"\n[1/2 sora_image] Prompt: {img_prompt}")
+        print(f"\n[1/2] Prompt: {img_prompt}")
         client.max_attempts = 1
         t0 = time.time()
         save_dir = "result/image/test_avail"
@@ -217,7 +217,7 @@ if __name__ == "__main__":
             elapsed = time.time() - t0
             print(f"✗ 图片生成失败 ({elapsed:.1f}s): {e}\n")
     else:
-        print("\n[1/2 sora_image] 跳过（OPENAI_API_KEY 未设置）")
+        print("\n[1/2] 跳过（OPENAI_API_KEY 未设置）")
 
     # 2. gpt-image-1.5 图片生成（官方 API + 本地代理）
     if official_key:
