@@ -20,7 +20,7 @@ class DashScopeClient:
         dashscope.base_http_api_url = self.base_url
         self.image_processor = ImageProcessor()
 
-    def generate_image(self, prompt, model="wan2.6-t2i", size="1024*1024", n=1, session_id=None, save_dir=None):
+    def generate_image(self, prompt, model="wan2.7-image", size="1024*1024", n=1, session_id=None, save_dir=None):
         """
         Text to Image generation using DashScope
         """
@@ -65,7 +65,7 @@ class DashScopeClient:
             logging.error(f"Error in generate_image (DashScope): {e}")
             return []
 
-    def edit_image(self, prompt, image_urls, model="wan2.6-image", size="1920*1080", n=1, session_id=None, save_dir=None):
+    def edit_image(self, prompt, image_urls, model="wan2.7-image", size="1920*1080", n=1, session_id=None, save_dir=None):
         """
         Image editing/compositing using DashScope ImageGeneration
         """
@@ -136,11 +136,12 @@ class DashScopeClient:
 
 if __name__ == "__main__":
     import sys
-    import tempfile
     sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
     from config import Config
 
     print("=== DashScope 图片生成可用性测试 ===")
+    MODELS=["wan2.6-t2i", "wan2.7-image", "wan2.7-image-pro"]
+    save_dir = "code/result/image/test_avail"
     api_key = Config.DASHSCOPE_API_KEY
     base_url = Config.DASHSCOPE_BASE_URL
     if not api_key:
@@ -149,14 +150,42 @@ if __name__ == "__main__":
     print(f"  API Key: {api_key[:6]}***{api_key[-4:]}")
     print(f"  Base URL: {base_url}")
     client = DashScopeClient(api_key=api_key, base_url=base_url)
+
+    # 文生图
+    print("\n=== 文生图测试 ===")
     prompt = "一只橘猫躺在阳光下的窗台上，水彩画风格"
-    print(f"Prompt: {prompt}")
-    with tempfile.TemporaryDirectory() as tmp:
+    for model in MODELS:
+        print(f"\nPrompt: {prompt}")
+        print(f"model: {model}")
+        os.makedirs(save_dir, exist_ok=True)
         t0 = time.time()
         try:
             paths = client.generate_image(
-                prompt=prompt, model="wan2.6-t2i",
-                size="1024*1024", save_dir=tmp,
+                prompt=prompt, model=model,
+                size="1024*1024", save_dir=save_dir,
+            )
+            elapsed = time.time() - t0
+            if paths:
+                print(f"✓ 生成 {len(paths)} 张图片 ({elapsed:.1f}s): {paths}")
+            else:
+                print(f"✗ 返回空列表 ({elapsed:.1f}s)")
+        except Exception as e:
+            print(f"✗ 失败: {e}")
+            sys.exit(1)
+
+    # 图生图
+    print("\n=== 图生图测试 ===")
+    img_path = "code/result/image/test_avail/test_input.png"
+    prompt = "在这张图片的基础上，添加一些飞舞的樱花花瓣，绘制为水彩画风格"
+    for model in MODELS:
+        print(f"\nPrompt: {prompt}")
+        print(f"model: {model}")
+        os.makedirs(save_dir, exist_ok=True)
+        t0 = time.time()
+        try:
+            paths = client.edit_image(
+                prompt=prompt, image_urls=[img_path], model=model,
+                size="1024*1024", save_dir=save_dir,
             )
             elapsed = time.time() - t0
             if paths:

@@ -6,6 +6,8 @@ class DeepSeek:
     """
     deepseek-chat: DeepSeek-V3.2 非思考模式
     deepseek-reasoner: DeepSeek-V3.2 思考模式
+    deepseek-v4-flash: DeepSeek-V4 Flash
+    deepseek-v4-pro: DeepSeek-V4 Pro
     """
     def __init__(self, base_url="", api_key=""):
         self.base_url = base_url or os.getenv("DEEPSEEK_BASE_URL") or "https://api.deepseek.com/v1"
@@ -67,10 +69,10 @@ if __name__ == "__main__":
     from config import Config
 
     # 支持的模型列表
-    MODELS = ["deepseek-chat", "deepseek-reasoner"]
+    MODELS = ["deepseek-chat", "deepseek-reasoner", "deepseek-v4-flash", "deepseek-v4-pro"]
 
     print("=== DeepSeek 可用性测试 ===")
-    api_key = os.getenv("DEEPSEEK_API_KEY", "")
+    api_key = os.getenv("DEEPSEEK_API_KEY")
     base_url = os.getenv("DEEPSEEK_BASE_URL", "")
     if not api_key:
         print("✗ DEEPSEEK_API_KEY 未设置，跳过")

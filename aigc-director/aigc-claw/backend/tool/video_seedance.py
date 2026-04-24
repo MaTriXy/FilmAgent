@@ -1,6 +1,6 @@
 """
 Seedance 视频生成 API 客户端 (字节跳动 ARK)
-支持 doubao-seedance-2-0-260128 模型
+
 """
 
 import os
@@ -173,7 +173,7 @@ if __name__ == "__main__":
     IMAGE_PATH = "code/result/image/test_avail/test_input.png"
     OUTPUT_PATH = "code/result/video/test_avail/seedance_test_output.mp4"
     PROMPT = ""
-    MODEL = "doubao-seedance-2-0-260128"
+    MODELS = ["doubao-seedance-2-0-fast-260128", "doubao-seedance-2-0-260128"]
     DURATION = 5
 
     print("=== Seedance (ARK) 图生视频测试 ===")
@@ -190,32 +190,35 @@ if __name__ == "__main__":
 
     print(f"  API Key    : {api_key[:6]}***{api_key[-4:]}")
     print(f"  Base URL   : {base_url}")
-    print(f"  输入图片   : {IMAGE_PATH}")
-    print(f"  输出路径   : {OUTPUT_PATH}")
-    print(f"  模型       : {MODEL}")
-    print(f"  时长       : {DURATION}s")
-    if PROMPT:
-        print(f"  提示词     : {PROMPT[:80]}")
-    print("-" * 40)
 
-    try:
-        client = SeedanceVideoClient(api_key=api_key, base_url=base_url)
-        print("✓ 客户端初始化成功")
+    for model in MODELS:
+        print("\n" + "="*40)
+        print(f"  输入图片   : {IMAGE_PATH}")
+        print(f"  输出路径   : {OUTPUT_PATH}")
+        print(f"  模型       : {model}")
+        print(f"  时长       : {DURATION}s")
+        if PROMPT:
+            print(f"  提示词     : {PROMPT[:80]}")
 
-        start = time.time()
-        video_url = client.generate_video(
-            prompt=PROMPT,
-            image_path=IMAGE_PATH,
-            save_path=OUTPUT_PATH,
-            model=MODEL,
-            duration=DURATION,
-        )
-        elapsed = time.time() - start
+        try:
+            client = SeedanceVideoClient(api_key=api_key, base_url=base_url)
+            print("✓ 客户端初始化成功")
 
-        print(f"✓ 视频生成完成！耗时 {elapsed:.1f}s")
-        print(f"  远端 URL : {video_url}")
-        print(f"  本地文件 : {os.path.abspath(OUTPUT_PATH)}")
-        print(f"  文件大小 : {os.path.getsize(OUTPUT_PATH) / 1024 / 1024:.2f} MB")
-    except Exception as e:
-        print(f"✗ 失败: {e}")
-        sys.exit(1)
+            start = time.time()
+            video_url = client.generate_video(
+                prompt=PROMPT,
+                image_path=IMAGE_PATH,
+                save_path=OUTPUT_PATH,
+                model=model,
+                duration=DURATION,
+            )
+            elapsed = time.time() - start
+
+            print(f"✓ 视频生成完成！耗时 {elapsed:.1f}s")
+            print(f"  远端 URL : {video_url}")
+            print(f"  本地文件 : {os.path.abspath(OUTPUT_PATH)}")
+            print(f"  文件大小 : {os.path.getsize(OUTPUT_PATH) / 1024 / 1024:.2f} MB")
+        except Exception as e:
+            print(f"✗ 失败: {e}")
+            sys.exit(1)
+        break  # 只测试第一个模型

@@ -313,7 +313,7 @@ export default function SandboxPage() {
     }
   };
 
-  const [selectedModel, setSelectedModel] = useState(getModels()[0]?.id || '');
+  const [selectedModel, setSelectedModel] = useState(getModels().find(m => m.default)?.id || getModels()[0]?.id || '');
   const [webSearch, setWebSearch] = useState(false);
 
   // 工具切换时重置模型选择
@@ -330,7 +330,7 @@ export default function SandboxPage() {
         default: return LLM_MODELS;
       }
     })();
-    setSelectedModel(models[0]?.id || '');
+    setSelectedModel(models.find(m => m.default)?.id || models[0]?.id || '');
     setResult(null);
     setError(null);
     setImageUrl('');
@@ -351,7 +351,7 @@ export default function SandboxPage() {
     // 只有当前模型不在新工具的模型列表中时才更新
     const currentInList = models.some(m => m.id === selectedModel);
     if (!currentInList) {
-      setSelectedModel(models[0]?.id || '');
+      setSelectedModel(models.find(m => m.default)?.id || models[0]?.id || '');
     }
   }, [activeTool]);
 

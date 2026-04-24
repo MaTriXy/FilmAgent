@@ -29,6 +29,8 @@ export const LLM_PROVIDERS: ProviderGroup[] = [
         models: [
             { id: 'deepseek-chat', label: 'deepseek-chat' },
             { id: 'deepseek-reasoner', label: 'deepseek-reasoner' },
+            { id: 'deepseek-v4-flash', label: 'deepseek-v4-flash' },
+            { id: 'deepseek-v4-pro', label: 'deepseek-v4-pro' },
         ],
     },
     {
@@ -59,7 +61,9 @@ export const T2I_PROVIDERS: ProviderGroup[] = [
         provider: 'dashscope',
         label: 'DashScope',
         models: [
-            { id: 'wan2.6-t2i', label: 'wan2.6-t2i', default: true },
+            { id: 'wan2.7-image', label: 'wan2.7-image', default: true },
+            { id: 'wan2.7-image-pro', label: 'wan2.7-image-pro' },
+            { id: 'wan2.6-t2i', label: 'wan2.6-t2i' },
         ],
     },
     {
@@ -82,7 +86,6 @@ export const T2I_PROVIDERS: ProviderGroup[] = [
         provider: 'openai',
         label: 'OpenAI',
         models: [
-            { id: 'sora_image', label: 'sora_image' },
             { id: 'gpt-image-2', label: 'gpt-image-2' },
         ],
     },
@@ -96,7 +99,8 @@ export const I2I_PROVIDERS: ProviderGroup[] = [
         provider: 'dashscope',
         label: 'DashScope',
         models: [
-            { id: 'wan2.6-t2i', label: 'wan2.6-t2i', default: true },
+            { id: 'wan2.7-image', label: 'wan2.7-image', default: true },
+            { id: 'wan2.7-image-pro', label: 'wan2.7-image-pro' },
         ],
     },
     {
@@ -141,6 +145,7 @@ export const VIDEO_PROVIDERS: ProviderGroup[] = [
         label: 'Seedance',
         models: [
             { id: 'doubao-seedance-2-0-260128', label: 'Seedance 2.0' },
+            { id: 'doubao-seedance-2-0-fast-260128', label: 'Seedance 2.0 Fast' },
         ],
     },
     {

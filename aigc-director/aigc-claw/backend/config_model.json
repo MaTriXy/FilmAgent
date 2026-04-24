@@ -16,6 +16,22 @@
       "price_per_1k_input_token": 0.004,
       "price_per_1k_output_token": 0.016
     },
+    "deepseek-v4-flash": {
+      "name": "DeepSeek V4 Flash",
+      "provider": "deepseek",
+      "type": ["llm"],
+      "concurrency": 10,
+      "price_per_1k_input_token": 0.001,
+      "price_per_1k_output_token": 0.004
+    },
+    "deepseek-v4-pro": {
+      "name": "DeepSeek V4 Pro",
+      "provider": "deepseek",
+      "type": ["llm"],
+      "concurrency": 10,
+      "price_per_1k_input_token": 0.002,
+      "price_per_1k_output_token": 0.008
+    },
     "gpt-4o": {
       "name": "GPT-4o",
       "provider": "openai",
@@ -83,7 +99,7 @@
     "kimi-k2.6": {
       "name": "Kimi K2.6",
       "provider": "qwen",
-      "type": ["vlm"],
+      "type": ["llm", "vlm"],
       "concurrency": 10,
       "price_per_1k_input_token": 0.001,
       "price_per_1k_output_token": 0.003
@@ -119,10 +135,24 @@
       "concurrency": 2,
       "price_per_image": 0.22
     },
+    "wan2.7-image": {
+      "name": "Wan 2.7 Image",
+      "provider": "dashscope",
+      "type": ["t2i", "i2i"],
+      "concurrency": 5,
+      "price_per_image": 0.2
+    },
+    "wan2.7-image-pro": {
+      "name": "Wan 2.7 Image Pro",
+      "provider": "dashscope",
+      "type": ["t2i", "i2i"],
+      "concurrency": 5,
+      "price_per_image": 0.4
+    },
     "wan2.6-t2i": {
       "name": "Wan 2.6 T2I",
       "provider": "dashscope",
-      "type": ["t2i", "i2i"],
+      "type": ["t2i"],
       "concurrency": 5,
       "price_per_image": 0.2
     },
@@ -157,7 +187,7 @@
     "gpt-image-2": {
       "name": "GPT Image 2",
       "provider": "openai",
-      "type": ["t2i"],
+      "type": ["t2i", "i2i"],
       "concurrency": 3,
       "price_per_image": 1.09
     },
@@ -202,6 +232,13 @@
       "type": ["video"],
       "concurrency": 10,
       "price_per_second": 0.5
+    },
+    "doubao-seedance-2-0-fast-260128": {
+      "name": "Seedance 2.0 Fast",
+      "provider": "seedance",
+      "type": ["video"],
+      "concurrency": 10,
+      "price_per_second": 0.3
     },
     "jimeng_ti2v_v30_pro": {
       "name": "JiMeng Ti2V V30 Pro",

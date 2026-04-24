@@ -57,11 +57,11 @@ export default function HomePage({ onStartProject, onResumeProject, onDeleteSess
   const [idea, setIdea] = useState('');
   const [showSettings, setShowSettings] = useState(false);
   const [selectedStyle, setSelectedStyle] = useState('realistic');
-  const [selectedLLM, setSelectedLLM] = useState(LLM_MODELS[0].id);
-  const [selectedVLM, setSelectedVLM] = useState(VLM_MODELS[0].id);
-  const [selectedT2I, setSelectedT2I] = useState(T2I_MODELS[0].id);
-  const [selectedI2I, setSelectedI2I] = useState(I2I_MODELS[0].id);
-  const [selectedVideo, setSelectedVideo] = useState(VIDEO_MODELS[0].id);
+  const [selectedLLM, setSelectedLLM] = useState(LLM_MODELS.find(m => m.default)?.id || LLM_MODELS[0].id);
+  const [selectedVLM, setSelectedVLM] = useState(VLM_MODELS.find(m => m.default)?.id || VLM_MODELS[0].id);
+  const [selectedT2I, setSelectedT2I] = useState(T2I_MODELS.find(m => m.default)?.id || T2I_MODELS[0].id);
+  const [selectedI2I, setSelectedI2I] = useState(I2I_MODELS.find(m => m.default)?.id || I2I_MODELS[0].id);
+  const [selectedVideo, setSelectedVideo] = useState(VIDEO_MODELS.find(m => m.default)?.id || VIDEO_MODELS[0].id);
   const [selectedRatio, setSelectedRatio] = useState('16:9');
   const [enableConcurrency, setEnableConcurrency] = useState(true);
   const [webSearch, setWebSearch] = useState(false);

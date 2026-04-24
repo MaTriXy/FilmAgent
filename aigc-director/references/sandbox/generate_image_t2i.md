@@ -8,7 +8,7 @@
 curl -X POST "http://localhost:8000/api/sandbox/t2i" \
   -H "Content-Type: application/json" \
   -d '{
-    "model": "doubao-seedream-5-0",
+    "model": "wan2.7-image",
     "prompt": "A cute cat sitting on a couch, realistic style"
   }'
 ```
@@ -17,9 +17,11 @@ curl -X POST "http://localhost:8000/api/sandbox/t2i" \
 
 | 模型 | 说明 |
 |------|------|
-| doubao-seedream-5-0 | 默认 |
-| gpt-image-2 | OpenAI 最新模型 |
+| wan2.7-image | 默认 |
+| wan2.7-image-pro | |
 | wan2.6-t2i | |
+| doubao-seedream-5-0 | |
+| gpt-image-2 | OpenAI 最新模型 |
 | sora_image | |
 
 ## 响应
