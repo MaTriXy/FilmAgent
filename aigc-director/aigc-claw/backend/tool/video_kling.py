@@ -220,7 +220,7 @@ class KlingVideoClient:
 
         logger.info(f"KlingVideoClient: 提交任务 model={model_name}, mode={mode}, duration={clamped}s, sound={body.get('sound', 'off')}")
 
-        resp = self._session.post(url, json=body, headers=headers, timeout=120)
+        resp = self._session.post(url, json=body, headers=headers, timeout=300)
         if not resp.ok:
             try:
                 err_body = resp.json()
@@ -305,7 +305,7 @@ class KlingVideoClient:
             os.makedirs(save_dir, exist_ok=True)
         # 下载也用 TLS 安全 Session
         dl_session = _build_session(max_retries=2)
-        resp = dl_session.get(video_url, stream=True, timeout=120)
+        resp = dl_session.get(video_url, stream=True, timeout=600)
         resp.raise_for_status()
         with open(save_path, "wb") as f:
             for chunk in resp.iter_content(chunk_size=8192):
