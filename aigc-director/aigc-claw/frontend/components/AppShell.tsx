@@ -9,7 +9,7 @@ import { useState } from 'react';
 const NAV_ITEMS = [
   { href: '/', label: 'AIGC-Claw', icon: Home },
   { href: '/sandbox', label: '临时工作台', icon: Hexagon },
-  { href: '/pipelines/standard', label: '静态短视频', icon: Clapperboard },
+  { href: '/pipelines/standard', label: '文艺短视频', icon: Clapperboard },
   { href: '/pipelines/action-transfer', label: '动作迁移', icon: Repeat2 },
   { href: '/pipelines/digital-human', label: '数字人口播', icon: UserRound },
 ];

@@ -1,10 +1,13 @@
+import json
+import logging
 import os
 import re
 
 from config import settings
 from models.llm_client import LLM
+from prompts.loader import format_prompt, load_prompt
 
-from .api_media import generate_image_api
+from .api_media import generate_image_api, generate_video_api
 from .storage import append_artifact, task_output_dir, update_task
 from .tts import generate_edge_tts
 from .utils import (
@@ -13,6 +16,7 @@ from .utils import (
     create_static_image_clip,
     media_duration_seconds,
     render_static_text_image,
+    replace_video_audio,
     run_blocking,
     write_json,
     write_text,
@@ -22,20 +26,104 @@ DEFAULT_STYLE_CONTROL = (
     "Minimalist black-and-white matchstick figure style illustration, clean lines, simple sketch style"
 )
 
+logger = logging.getLogger(__name__)
+
+
 def split_by_periods(text: str) -> list[str]:
     parts = re.findall(r"[^。．.]+[。．.]?|[^。．.]+$", text.strip())
     return [part.strip() for part in parts if part.strip()]
 
 
-def build_image_prompt(narration: str, style_control: str) -> str:
+def clamp_segment_count(value, default: int = 6) -> int:
+    try:
+        count = int(value)
+    except (TypeError, ValueError):
+        count = default
+    return max(1, min(20, count))
+
+
+def parse_json_object_response(text: str) -> dict:
+    response = text.strip()
+    try:
+        return json.loads(response)
+    except json.JSONDecodeError:
+        match = re.search(r"```(?:json)?\s*(\{.*?\})\s*```", response, re.S)
+        if not match:
+            match = re.search(r"(\{.*\})", response, re.S)
+        if not match:
+            raise ValueError("Model response did not contain a JSON object.")
+        return json.loads(match.group(1))
+
+
+def parse_narrations_response(text: str, expected_count: int) -> list[str]:
+    data = parse_json_object_response(text)
+    narrations = data.get("narrations") if isinstance(data, dict) else None
+    if not isinstance(narrations, list):
+        raise ValueError("Model response missing narrations array.")
+
+    segments = [str(item).strip() for item in narrations if str(item).strip()]
+    if len(segments) != expected_count:
+        raise ValueError(f"Expected {expected_count} narrations, got {len(segments)}.")
+    return segments
+
+
+def parse_image_prompts_response(text: str, expected_count: int) -> list[str]:
+    data = parse_json_object_response(text)
+
+    prompts = data.get("image_prompts") if isinstance(data, dict) else None
+    if not isinstance(prompts, list):
+        raise ValueError("Model response missing image_prompts array.")
+
+    image_prompts = [str(prompt).strip() for prompt in prompts if str(prompt).strip()]
+    if len(image_prompts) != expected_count:
+        raise ValueError(
+            f"Expected {expected_count} image prompts, got {len(image_prompts)}."
+        )
+    return image_prompts
+
+
+def build_image_prompt(visual_prompt: str, style_control: str) -> str:
     style = style_control.strip()
     no_text_instruction = (
         "Do not include any text, captions, logos, watermarks, labels, typography, "
         "or written characters in the image."
     )
     if not style:
-        return f"{no_text_instruction}\n{narration}"
-    return f"{style}\n{no_text_instruction}\n{narration}"
+        return f"{no_text_instruction}\n{visual_prompt}"
+    return f"{style}\n{no_text_instruction}\n{visual_prompt}"
+
+
+async def generate_image_prompts(
+    narrations: list[str],
+    style_control: str,
+    llm: LLM,
+    llm_model: str,
+) -> list[str]:
+    template = load_prompt("pipelines", "standard_image_prompt_generation", "en")
+    prompt = format_prompt(
+        template,
+        narrations_count=len(narrations),
+        narrations_json=json.dumps({"narrations": narrations}, ensure_ascii=False, indent=2),
+    )
+    response = await run_blocking(llm.query, prompt, model=llm_model)
+    visual_prompts = parse_image_prompts_response(response, len(narrations))
+    return [build_image_prompt(visual_prompt, style_control) for visual_prompt in visual_prompts]
+
+
+async def generate_narrations_from_inspiration(
+    inspiration: str,
+    segment_count: int,
+    llm: LLM,
+    llm_model: str,
+) -> list[str]:
+    template = load_prompt("pipelines", "standard_narration_generation", "zh")
+    prompt = format_prompt(
+        template,
+        inspiration=inspiration,
+        segment_count=segment_count,
+    )
+    response = await run_blocking(llm.query, prompt, model=llm_model)
+    return parse_narrations_response(response, segment_count)
 
 
 async def run(task_id: str, params: dict) -> tuple[dict, list[dict]]:
@@ -51,20 +139,19 @@ async def run(task_id: str, params: dict) -> tuple[dict, list[dict]]:
     llm = None
     llm_model = params.get("llm_model") or settings.LLM_MODEL
     if mode == "inspiration":
+        segment_count = clamp_segment_count(params.get("segment_count"))
         update_task(task_id, progress=6, message="Writing narration from inspiration")
         llm = LLM()
-        source_text = await run_blocking(
-            llm.query,
-            (
-                "请根据下面的创作灵感，写一段适合静态短视频的中文旁白文案。"
-                "要求语言口语化、有节奏感，按句号分成 4-8 句，只输出文案正文。\n"
-                f"创作灵感：{text}"
-            ),
-            model=llm_model,
+        narrations = await generate_narrations_from_inspiration(
+            source_text,
+            segment_count,
+            llm,
+            llm_model,
         )
-        source_text = source_text.strip()
+        source_text = "\n".join(narrations)
+    else:
+        narrations = split_by_periods(source_text)
 
-    narrations = split_by_periods(source_text)
     if not narrations:
         raise RuntimeError("No narration segments were generated.")
 
@@ -75,7 +162,7 @@ async def run(task_id: str, params: dict) -> tuple[dict, list[dict]]:
             llm = LLM()
         title = await run_blocking(
             llm.query,
-            f"为下面的静态短视频旁白生成一个简短中文标题，只输出标题：\n{source_text}",
+            f"为下面的文艺短视频旁白生成一个简短中文标题，只输出标题：\n{source_text}",
             model=llm_model,
         )
         title = title.strip().splitlines()[0]
@@ -85,12 +172,30 @@ async def run(task_id: str, params: dict) -> tuple[dict, list[dict]]:
     image_model = params.get("image_model") or params.get("image_workflow") or settings.IMAGE_T2I_MODEL
     image_resolution = params.get("image_resolution") or "1080P"
     enable_subtitles = bool(params.get("enable_subtitles", False))
+    video_mode = params.get("video_mode") or "image_concat"
+    dynamic_video = video_mode == "dynamic_video" or bool(params.get("generate_videos", False))
+    video_model = params.get("video_model") or settings.VIDEO_MODEL
+    video_duration = clamp_segment_count(params.get("video_duration") or params.get("duration") or 5, default=5)
 
-    image_prompts = [build_image_prompt(narration, style_control) for narration in narrations]
+    update_task(task_id, progress=9, message="Generating image prompts")
+    if llm is None:
+        llm = LLM()
+    try:
+        image_prompts = await generate_image_prompts(narrations, style_control, llm, llm_model)
+    except Exception as exc:
+        logger.warning(
+            "Failed to generate structured image prompts, fallback to narration prompts: task_id=%s error=%s",
+            task_id,
+            exc,
+        )
+        image_prompts = [build_image_prompt(narration, style_control) for narration in narrations]
+
     storyboard = {
         "title": title,
         "mode": mode,
         "input_text": text,
+        "segment_count": len(narrations),
+        "video_mode": "dynamic_video" if dynamic_video else "image_concat",
         "style_control": style_control,
         "frames": [
             {"index": idx + 1, "narration": narration, "image_prompt": image_prompts[idx]}
@@ -153,7 +258,7 @@ async def run(task_id: str, params: dict) -> tuple[dict, list[dict]]:
         update_task(
             task_id,
             progress=70 + int(20 * idx / len(images)),
-            message=f"Creating static clip {idx}/{len(images)}",
+            message=f"{'Generating dynamic video' if dynamic_video else 'Creating static clip'} {idx}/{len(images)}",
         )
         duration = media_duration_seconds(audio_path) or 3.0
         clip_image_path = image_path
@@ -172,14 +277,36 @@ async def run(task_id: str, params: dict) -> tuple[dict, list[dict]]:
             append_artifact(task_id, captioned_artifact)
             storyboard["frames"][idx - 1]["captioned_image_path"] = clip_image_path
         video_path = os.path.join(output_dir, f"video_{idx:02d}.mp4")
-        await run_blocking(
-            create_static_image_clip,
-            clip_image_path,
-            audio_path,
-            video_path,
-            video_ratio=video_ratio,
-            duration=duration,
-        )
+        if dynamic_video:
+            video_only_segment_path = os.path.join(output_dir, f"video_{idx:02d}_motion.mp4")
+            await run_blocking(
+                generate_video_api,
+                prompt=image_prompts[idx - 1],
+                model=video_model,
+                output_path=video_only_segment_path,
+                image_path=clip_image_path,
+                duration=max(video_duration, int(duration + 0.999)),
+                video_ratio=video_ratio,
+            )
+            motion_artifact = artifact(video_only_segment_path, "video", f"video_{idx:02d}_motion")
+            artifacts.append(motion_artifact)
+            append_artifact(task_id, motion_artifact)
+            storyboard["frames"][idx - 1]["motion_video_path"] = video_only_segment_path
+            video_path = await run_blocking(
+                replace_video_audio,
+                video_only_segment_path,
+                audio_path,
+                video_path,
+            )
+        else:
+            await run_blocking(
+                create_static_image_clip,
+                clip_image_path,
+                audio_path,
+                video_path,
+                video_ratio=video_ratio,
+                duration=duration,
+            )
         videos.append(video_path)
         video_artifact = artifact(video_path, "video", f"video_{idx:02d}")
         artifacts.append(video_artifact)
@@ -207,6 +334,8 @@ async def run(task_id: str, params: dict) -> tuple[dict, list[dict]]:
         "images": images,
         "audios": audios,
         "videos": videos,
+        "video_mode": "dynamic_video" if dynamic_video else "image_concat",
+        "video_model": video_model if dynamic_video else None,
         "video_only_path": video_only_path,
         "final_video": final_path,
     }

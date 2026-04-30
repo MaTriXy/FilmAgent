@@ -7,11 +7,13 @@ class StandardPipelineRequest(BaseModel):
     text: str = Field(..., description="Topic or fixed narration script")
     mode: str = "copy"
     title: Optional[str] = None
+    segment_count: Optional[int] = Field(None, ge=1, le=20, description="Target narration segment count for inspiration mode")
     n_scenes: int = 5
     split_mode: str = "paragraph"
     llm_model: Optional[str] = None
     image_model: Optional[str] = None
     video_model: Optional[str] = None
+    video_mode: str = Field("image_concat", description="image_concat or dynamic_video")
     video_ratio: str = "9:16"
     image_resolution: str = "1080P"
     video_resolution: Optional[str] = None

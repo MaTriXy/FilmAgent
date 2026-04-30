@@ -254,7 +254,7 @@ def render_static_text_image(
     overlay = Image.new("RGBA", image.size, (0, 0, 0, 0))
     draw = ImageDraw.Draw(overlay)
 
-    title_font = _load_font(max(34, int(height * 0.042)))
+    title_font = _load_font(max(48, int(height * 0.06)))
     subtitle_font = _load_font(max(32, int(height * 0.035)))
     margin_x = max(48, int(width * 0.07))
     max_text_width = width - margin_x * 2
@@ -264,17 +264,6 @@ def render_static_text_image(
         title_line_height = max(1, draw.textbbox((0, 0), "国", font=title_font)[3])
         title_height = len(title_lines) * title_line_height + max(0, len(title_lines) - 1) * 10
         title_y = max(48, int(height * 0.055))
-        box_padding = 18
-        draw.rounded_rectangle(
-            [
-                margin_x - box_padding,
-                title_y - box_padding,
-                width - margin_x + box_padding,
-                title_y + title_height + box_padding,
-            ],
-            radius=18,
-            fill=(0, 0, 0, 96),
-        )
         _draw_centered_lines(
             draw,
             title_lines,
@@ -291,17 +280,6 @@ def render_static_text_image(
     subtitle_line_height = max(1, draw.textbbox((0, 0), "国", font=subtitle_font)[3])
     subtitle_height = len(subtitle_lines) * subtitle_line_height + max(0, len(subtitle_lines) - 1) * 10
     subtitle_y = height - max(96, int(height * 0.08)) - subtitle_height
-    box_padding = 20
-    draw.rounded_rectangle(
-        [
-            margin_x - box_padding,
-            subtitle_y - box_padding,
-            width - margin_x + box_padding,
-            subtitle_y + subtitle_height + box_padding,
-        ],
-        radius=18,
-        fill=(0, 0, 0, 118),
-    )
     _draw_centered_lines(
         draw,
         subtitle_lines,

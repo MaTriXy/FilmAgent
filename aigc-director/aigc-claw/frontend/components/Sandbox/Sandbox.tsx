@@ -1,9 +1,10 @@
 'use client';
 
 import { useState, useEffect, useRef, DragEvent } from 'react';
-import { Sparkles, Image, Video, MessageSquare, Zap, Loader2, Copy, Check, Trash2, X, FolderOpen, Upload, Globe } from 'lucide-react';
+import { Sparkles, Image, Video, MessageSquare, Zap, Loader2, Copy, Check, Trash2, X, FolderOpen, Upload, Globe, Hexagon } from 'lucide-react';
 import { useSearchParams } from 'next/navigation';
 import { LLM_MODELS, T2I_MODELS, I2I_MODELS, VIDEO_MODELS, VLM_MODELS } from '@/config/models';
+import BrandHeader from '@/components/BrandHeader';
 
 // 辅助函数：将相对路径转换为完整 URL
 const toMediaUrl = (path: string) => {
@@ -509,21 +510,19 @@ export default function SandboxPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-white to-purple-50">
-      {/* 顶部导航 */}
-      <header className="bg-white border-b border-gray-200 px-6 py-4">
-        <div className="max-w-5xl mx-auto flex items-center justify-between">
-          <div className="flex items-center gap-4">
-            <div>
-              <h1 className="text-xl font-bold text-gray-800">临时工作台</h1>
-              <p className="text-sm text-gray-500">独立调用各种 AI 工具</p>
-            </div>
-          </div>
-        </div>
-      </header>
+    <div className="min-h-screen bg-gray-50/50">
+      <BrandHeader />
 
       <main className="max-w-5xl mx-auto px-6 py-8">
         <>
+            <div className="mb-8 text-center">
+              <div className="inline-flex items-center gap-2 mb-3">
+                <Hexagon className="w-7 h-7 text-blue-500" />
+                <h1 className="text-2xl font-bold text-gray-800">临时工作台</h1>
+              </div>
+              <p className="text-sm text-gray-500">独立调用各种 AI 工具</p>
+            </div>
+
             {/* 工具选择 */}
             <div className="grid grid-cols-5 gap-3 mb-8">
               {tools.map(tool => (

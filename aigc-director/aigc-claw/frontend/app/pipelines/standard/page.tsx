@@ -4,8 +4,8 @@ export default function StandardPipelinePage() {
   return (
     <PipelinePage
       pipeline="standard"
-      title="静态短视频"
-      subtitle="输入旁白文案，按句号切分片段，为每句生成图片并合成为静态短视频"
+      title="文艺短视频"
+      subtitle="输入创作灵感或完整文案，生成图片拼接或动态视频短片"
     />
   );
 }

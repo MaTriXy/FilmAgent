@@ -7,6 +7,7 @@ import {
   Clapperboard,
   Clock,
   Image as ImageIcon,
+  Lightbulb,
   Loader2,
   Play,
   RefreshCw,
@@ -575,6 +576,7 @@ export default function PipelinePage({ pipeline, title, subtitle }: PipelinePage
 
   const [text, setText] = useState('');
   const [standardMode, setStandardMode] = useState<'inspiration' | 'copy'>('inspiration');
+  const [standardVideoMode, setStandardVideoMode] = useState<'image_concat' | 'dynamic_video'>('image_concat');
   const [titleValue, setTitleValue] = useState('');
   const [standardSegmentCount, setStandardSegmentCount] = useState(6);
   const [enableSubtitles, setEnableSubtitles] = useState(false);
@@ -599,7 +601,11 @@ export default function PipelinePage({ pipeline, title, subtitle }: PipelinePage
 
   useEffect(() => {
     const imageAbility = pipeline === 'digital_human' ? 'reference_image' : 'text_to_image';
-    const videoAbility = pipeline === 'action_transfer' ? 'action_transfer' : 'digital_human';
+    const videoAbility = pipeline === 'standard'
+      ? 'first_frame_i2v'
+      : pipeline === 'action_transfer'
+        ? 'action_transfer'
+        : 'digital_human';
 
     if (pipeline === 'standard') {
       setNegativePrompt(current => current || DEFAULT_STANDARD_STYLE_CONTROL);
@@ -613,17 +619,21 @@ export default function PipelinePage({ pipeline, title, subtitle }: PipelinePage
       })
       .catch(() => {});
 
-    if (pipeline !== 'standard') {
+    if (pipeline !== 'standard' || standardVideoMode === 'dynamic_video') {
       fetchApiModels({ mediaType: 'video', ability: videoAbility, verifiedOnly: true })
         .then(models => {
           const groups = groupApiModels(models, VIDEO_PROVIDERS);
           setVideoModelGroups(groups);
-          const preferred = pipeline === 'action_transfer' ? 'wan2.7-videoedit' : 'wan2.7-r2v';
+          const preferred = pipeline === 'standard'
+            ? DEFAULTS.video
+            : pipeline === 'action_transfer'
+              ? 'wan2.7-videoedit'
+              : 'wan2.7-r2v';
           setVideoModel(current => firstModelId(groups, current || preferred));
         })
         .catch(() => {});
     }
-  }, [pipeline]);
+  }, [pipeline, standardVideoMode]);
 
   const canSubmit = useMemo(() => {
     if (pipeline === 'standard') return text.trim().length > 0;
@@ -695,6 +705,9 @@ export default function PipelinePage({ pipeline, title, subtitle }: PipelinePage
             tts_speed: ttsSpeed,
             style_control: negativePrompt || undefined,
             segment_count: standardMode === 'inspiration' ? standardSegmentCount : undefined,
+            video_mode: standardVideoMode,
+            video_model: standardVideoMode === 'dynamic_video' ? videoModel : undefined,
+            video_duration: standardVideoMode === 'dynamic_video' ? duration : undefined,
           })
         : pipeline === 'action_transfer'
           ? await startActionTransferPipeline({
@@ -742,6 +755,31 @@ export default function PipelinePage({ pipeline, title, subtitle }: PipelinePage
           <section className="bg-white rounded-2xl shadow-sm border border-gray-200 p-5">
             {pipeline === 'standard' && (
               <div className="space-y-4">
+                <div className="grid grid-cols-2 h-10 rounded-lg bg-gray-100 p-1 text-sm max-w-sm">
+                  {[
+                    { id: 'image_concat', label: '图片拼接' },
+                    { id: 'dynamic_video', label: '动态视频' },
+                  ].map(item => (
+                    <button
+                      key={item.id}
+                      onClick={() => setStandardVideoMode(item.id as 'image_concat' | 'dynamic_video')}
+                      className={clsx('rounded-md transition-colors', standardVideoMode === item.id ? 'bg-white text-blue-600 shadow-sm' : 'text-gray-500')}
+                    >
+                      {item.label}
+                    </button>
+                  ))}
+                </div>
+                <div className="rounded-xl border border-yellow-300 bg-yellow-100 px-4 py-3">
+                  <div className="mb-1 flex items-center gap-1.5 text-xs font-semibold text-yellow-900">
+                    <Lightbulb className="w-3.5 h-3.5" />
+                    <span>说明</span>
+                  </div>
+                  <p className="text-sm leading-6 text-yellow-950">
+                    {standardVideoMode === 'image_concat'
+                      ? '图片拼接会为每个旁白片段生成一张图片，并配合 TTS 音频合成为静态图文短视频。等待时间主要取决于图片生成速度，通常每张图片约 10-20 秒。'
+                      : '动态视频会先为每个旁白片段生成图片，再调用视频模型把图片扩展为动态片段，最后合成为完整短片。等待时间更长，通常每个视频片段约 1-2 分钟。'}
+                  </p>
+                </div>
                 <div className="grid grid-cols-2 h-10 rounded-lg bg-gray-100 p-1 text-sm max-w-sm">
                   {[
                     { id: 'inspiration', label: '创作灵感' },
@@ -847,7 +885,7 @@ export default function PipelinePage({ pipeline, title, subtitle }: PipelinePage
                   {pipeline !== 'action_transfer' && (
                     <SelectField label="图片模型" value={imageModel} onChange={setImageModel} groups={imageModelGroups} />
                   )}
-                  {pipeline !== 'standard' && (
+                  {(pipeline !== 'standard' || standardVideoMode === 'dynamic_video') && (
                     <SelectField label="视频模型" value={videoModel} onChange={setVideoModel} groups={videoModelGroups} />
                   )}
                   <label className="flex flex-col gap-1.5">
@@ -856,7 +894,7 @@ export default function PipelinePage({ pipeline, title, subtitle }: PipelinePage
                       {VIDEO_RATIOS.map(item => <option key={item.id} value={item.id}>{item.label}</option>)}
                     </select>
                   </label>
-                  {pipeline === 'action_transfer' && (
+                  {(pipeline === 'action_transfer' || (pipeline === 'standard' && standardVideoMode === 'dynamic_video')) && (
                     <NumberField label="视频时长" value={duration} onChange={setDuration} min={1} max={10} />
                   )}
                   {pipeline !== 'action_transfer' && (

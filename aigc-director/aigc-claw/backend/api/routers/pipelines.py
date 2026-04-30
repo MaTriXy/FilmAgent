@@ -38,8 +38,8 @@ async def get_pipelines():
             {
                 "id": "standard",
                 "aliases": ["quick_create"],
-                "name": "Static Short Video",
-                "description": "Split narration by periods, generate one image per segment, and assemble a static short video without calling a video model.",
+                "name": "Artistic Short Video",
+                "description": "Split narration by periods, generate one image per segment, and assemble either an image-concat short video or dynamic image-to-video clips.",
             },
             {
                 "id": "action_transfer",
